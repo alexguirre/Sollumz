@@ -12,6 +12,7 @@ from .cwxml.navmesh import YNV
 from .cwxml.clipsdictionary import YCD
 from .cwxml.ytyp import YTYP
 from .cwxml.ymap import YMAP
+from .cwxml.mrf import MRF
 from .ydr.ydrimport import import_ydr
 from .ydr.ydrexport import export_ydr
 from .ydd.yddimport import import_ydd
@@ -25,6 +26,7 @@ from .ycd.ycdimport import import_ycd
 from .ycd.ycdexport import export_ycd
 from .ymap.ymapimport import import_ymap
 from .ymap.ymapexport import export_ymap
+from .mrf.mrfimport import import_mrf
 from .tools.blenderhelper import get_terrain_texture_brush, remove_number_suffix
 from .tools.ytyphelper import ytyp_from_objects
 
@@ -43,7 +45,7 @@ class SOLLUMZ_OT_import(SOLLUMZ_OT_base, bpy.types.Operator, ImportHelper):
     )
 
     filter_glob: bpy.props.StringProperty(
-        default=f"*{YDR.file_extension};*{YDD.file_extension};*{YFT.file_extension};*{YBN.file_extension};*{YNV.file_extension};*{YCD.file_extension};*{YMAP.file_extension};",
+        default=f"*{YDR.file_extension};*{YDD.file_extension};*{YFT.file_extension};*{YBN.file_extension};*{YNV.file_extension};*{YCD.file_extension};*{YMAP.file_extension};*{MRF.file_extension};",
         options={"HIDDEN"},
         maxlen=255,
     )
@@ -53,7 +55,7 @@ class SOLLUMZ_OT_import(SOLLUMZ_OT_base, bpy.types.Operator, ImportHelper):
     filename_exts = [YDR.file_extension, YDD.file_extension,
                      YFT.file_extension, YBN.file_extension,
                      YNV.file_extension, YCD.file_extension,
-                     YMAP.file_extension]
+                     YMAP.file_extension, MRF.file_extension]
 
     def draw(self, context):
         pass
@@ -79,6 +81,9 @@ class SOLLUMZ_OT_import(SOLLUMZ_OT_base, bpy.types.Operator, ImportHelper):
                 import_ycd(self, filepath, self.import_settings)
             elif ext == YMAP.file_extension:
                 import_ymap(self, filepath, self.import_settings)
+                valid_type = True
+            elif ext == MRF.file_extension:
+                import_mrf(filepath)
                 valid_type = True
             if valid_type:
                 self.message(f"Succesfully imported: {filepath}")
