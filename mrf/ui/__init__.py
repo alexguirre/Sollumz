@@ -1,6 +1,6 @@
 import bpy
-from ..sollumz_ui import SOLLUMZ_PT_OBJECT_PANEL
-from ..sollumz_properties import SollumType
+from ...sollumz_ui import SOLLUMZ_PT_OBJECT_PANEL
+from ...sollumz_properties import SollumType
 
 
 class SOLLUMZ_UL_MOVE_NETWORK_BITS_LIST(bpy.types.UIList):

@@ -186,6 +186,7 @@ class MoveStatesList(ListProperty):
 
         return new
 
+
 class MoveStateTransition(ElementTree):
     tag_name = "Item"
 
@@ -202,6 +203,7 @@ class MoveStateTransition(ElementTree):
 class MoveStateTransitionsList(ListProperty):
     list_type = MoveStateTransition
     tag_name = "Transitions"
+
 
 class MoveState(MoveStateBase):
     type = "State"
@@ -222,6 +224,10 @@ class MoveStateMachine(MoveStateBase):
         self.transitions = MoveStateTransitionsList()
 
 
+class MoveInvalid(MoveNode):
+    type = "Invalid"
+
+
 class MoveClip(MoveNode):
     type = "Clip"
 
@@ -233,6 +239,23 @@ class MoveClip(MoveNode):
         self.delta = MoveParameterizedValueProperty("Delta")
         self.looped = MoveParameterizedValueProperty("Looped")
         self.unk_flag10 = ValueProperty("UnkFlag10", 0)
+
+
+class MoveBlend(MoveNode):
+    type = "Blend"
+
+    def __init__(self):
+        super().__init__()
+        self.child0 = MoveNodeAny("Child0")
+        self.child1 = MoveNodeAny("Child1")
+
+
+class MoveFilter(MoveNode):
+    type = "Filter"
+
+    def __init__(self):
+        super().__init__()
+        self.child = MoveNodeAny("Child")
 
 
 class MoveNodeAny(ElementTree):
@@ -247,12 +270,20 @@ class MoveNodeAny(ElementTree):
         node = None
         if "type" in element.attrib:
             node_type = element.get("type")
-            if node_type == "State":
+            if node_type == "Invalid":
+                node = MoveInvalid.from_xml(element)
+            elif node_type == "State":
                 node = MoveState.from_xml(element)
             elif node_type == "StateMachine":
                 node = MoveStateMachine.from_xml(element)
             elif node_type == "Clip":
                 node = MoveClip.from_xml(element)
+            elif node_type == "Blend":
+                node = MoveBlend.from_xml(element)
+            elif node_type == "Filter":
+                node = MoveFilter.from_xml(element)
+            else:
+                raise TypeError("Invalid node type '%s'" % node_type)
 
         if node:
             node.tag_name = element.tag
@@ -282,6 +313,8 @@ class MoveNetwork(ElementTree, AbstractClass):
             root_state = MoveState.from_xml(root_state_elem)
         elif root_state_type == "StateMachine":
             root_state = MoveStateMachine.from_xml(root_state_elem)
+        else:
+            raise TypeError("Invalid root state node type")
 
         if root_state:
             root_state.tag_name = "RootState"
