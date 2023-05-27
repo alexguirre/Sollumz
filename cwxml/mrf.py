@@ -132,7 +132,7 @@ class MoveParameterizedClipProperty(Element):
         return elem
 
 
-class MoveNode(ElementTree, AbstractClass):
+class MoveNodeBase(ElementTree, AbstractClass):
     tag_name = "Item"
 
     def __init__(self):
@@ -140,6 +140,19 @@ class MoveNode(ElementTree, AbstractClass):
         self.type = AttributeProperty("type", self.type)
         self.name = TextProperty("Name", "")
         self.node_index = ValueProperty("NodeIndex", 0)
+
+
+class MoveNodeWithChildBase(MoveNodeBase, AbstractClass):
+    def __init__(self):
+        super().__init__()
+        self.child = MoveNodeAny("Child")
+
+
+class MoveNodePairBase(MoveNodeBase, AbstractClass):
+    def __init__(self):
+        super().__init__()
+        self.child0 = MoveNodeAny("Child0")
+        self.child1 = MoveNodeAny("Child1")
 
 
 class MoveNodeRef(ElementProperty):
@@ -160,7 +173,7 @@ class MoveNodeRef(ElementProperty):
         return ET.Element(self.tag_name, attrib={"ref": str(value)})
 
 
-class MoveStateBase(MoveNode):
+class MoveStateBase(MoveNodeBase):
     def __init__(self):
         super().__init__()
         self.state_unk3 = ValueProperty("StateUnk3", 0)
@@ -224,11 +237,11 @@ class MoveStateMachine(MoveStateBase):
         self.transitions = MoveStateTransitionsList()
 
 
-class MoveInvalid(MoveNode):
+class MoveInvalid(MoveNodeBase):
     type = "Invalid"
 
 
-class MoveClip(MoveNode):
+class MoveClip(MoveNodeBase):
     type = "Clip"
 
     def __init__(self):
@@ -241,21 +254,33 @@ class MoveClip(MoveNode):
         self.unk_flag10 = ValueProperty("UnkFlag10", 0)
 
 
-class MoveBlend(MoveNode):
+class MoveBlend(MoveNodePairBase):
     type = "Blend"
 
     def __init__(self):
         super().__init__()
-        self.child0 = MoveNodeAny("Child0")
-        self.child1 = MoveNodeAny("Child1")
+        self.weight = MoveParameterizedValueProperty("Weight")
 
 
-class MoveFilter(MoveNode):
+class MoveAddSubtract(MoveNodePairBase):
+    type = "AddSubtract"
+
+    def __init__(self):
+        super().__init__()
+
+
+class MoveFilter(MoveNodeWithChildBase):
     type = "Filter"
 
     def __init__(self):
         super().__init__()
-        self.child = MoveNodeAny("Child")
+
+
+class MoveExpression(MoveNodeWithChildBase):
+    type = "Expression"
+
+    def __init__(self):
+        super().__init__()
 
 
 class MoveNodeAny(ElementTree):
@@ -280,8 +305,12 @@ class MoveNodeAny(ElementTree):
                 node = MoveClip.from_xml(element)
             elif node_type == "Blend":
                 node = MoveBlend.from_xml(element)
+            elif node_type == "AddSubtract":
+                node = MoveAddSubtract.from_xml(element)
             elif node_type == "Filter":
                 node = MoveFilter.from_xml(element)
+            elif node_type == "Expression":
+                node = MoveExpression.from_xml(element)
             else:
                 raise TypeError("Invalid node type '%s'" % node_type)
 

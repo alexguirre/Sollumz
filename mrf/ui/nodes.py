@@ -1,6 +1,7 @@
 import bpy
 from .node_tree import NodeTree
 from .node_socket import *
+from ..properties import ParameterizedFloatProperty, ParameterizedBoolProperty
 
 
 class NodeBase(bpy.types.Node):
@@ -59,17 +60,38 @@ class NodeClip(NodeWithOutput):
     bl_idname = 'SOLLUMZ_NT_Clip'
     bl_label = 'Clip'
 
-    clip_container: bpy.props.StringProperty(name='Clip Container', default='')
-    clip: bpy.props.StringProperty(name='Clip', default='')
+    phase: bpy.props.PointerProperty(name='Phase', type=ParameterizedFloatProperty)
+    rate: bpy.props.PointerProperty(name='Rate', type=ParameterizedFloatProperty)
+    delta: bpy.props.PointerProperty(name='Delta', type=ParameterizedFloatProperty)
+    looped: bpy.props.PointerProperty(name='Looped', type=ParameterizedBoolProperty)
 
     def draw_buttons(self, context, layout):
-        layout.prop(self, 'clip_container')
-        layout.prop(self, 'clip')
+        # self.clip
+        self.phase.draw("Phase", layout)
+        self.rate.draw("Rate", layout)
+        self.delta.draw("Delta", layout)
+        self.looped.draw("Looped", layout)
+        # self.unk_flag10
 
 
 class NodeBlend(NodeWithOutput):
     bl_idname = 'SOLLUMZ_NT_Blend'
     bl_label = 'Blend'
+
+    weight: bpy.props.PointerProperty(name='Weight', type=ParameterizedFloatProperty)
+
+    def init(self, context):
+        super().init(context)
+        self.create_input(NodeSocket.bl_idname, "input1", "A")
+        self.create_input(NodeSocket.bl_idname, "input2", "B")
+
+    def draw_buttons(self, context, layout):
+        self.weight.draw("Weight", layout)
+
+
+class NodeAddSubtract(NodeWithOutput):
+    bl_idname = 'SOLLUMZ_NT_AddSubtract'
+    bl_label = 'Add-Subtract'
 
     def init(self, context):
         super().init(context)
@@ -80,6 +102,15 @@ class NodeBlend(NodeWithOutput):
 class NodeFilter(NodeWithOutput):
     bl_idname = 'SOLLUMZ_NT_Filter'
     bl_label = 'Filter'
+
+    def init(self, context):
+        super().init(context)
+        self.create_input(NodeSocket.bl_idname, "input", "In")
+
+
+class NodeExpression(NodeWithOutput):
+    bl_idname = 'SOLLUMZ_NT_Expression'
+    bl_label = 'Expression'
 
     def init(self, context):
         super().init(context)
@@ -117,7 +148,9 @@ def register():
     bpy.utils.register_class(NodeEmpty)
     bpy.utils.register_class(NodeClip)
     bpy.utils.register_class(NodeBlend)
+    bpy.utils.register_class(NodeAddSubtract)
     bpy.utils.register_class(NodeFilter)
+    bpy.utils.register_class(NodeExpression)
 
 
 def unregister():
@@ -125,4 +158,6 @@ def unregister():
     bpy.utils.unregister_class(NodeEmpty)
     bpy.utils.unregister_class(NodeClip)
     bpy.utils.unregister_class(NodeBlend)
+    bpy.utils.unregister_class(NodeAddSubtract)
     bpy.utils.unregister_class(NodeFilter)
+    bpy.utils.unregister_class(NodeExpression)

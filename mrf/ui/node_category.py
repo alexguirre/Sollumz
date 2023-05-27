@@ -11,9 +11,20 @@ class NodeCategory(nodeitems_utils.NodeCategory):
 
 
 node_categories = [
-    NodeCategory("ANIMATIONS", "Animations", items=[
-        nodeitems_utils.NodeItem(NodeOutputAnimation.bl_idname),
+    NodeCategory("INPUT", "Input", items=[
         nodeitems_utils.NodeItem(NodeClip.bl_idname),
+        nodeitems_utils.NodeItem(NodeEmpty.bl_idname),
+    ]),
+    NodeCategory("OUTPUT", "Output", items=[
+        nodeitems_utils.NodeItem(NodeOutputAnimation.bl_idname),
+    ]),
+    NodeCategory("COMBINE", "Combine", items=[
+        nodeitems_utils.NodeItem(NodeBlend.bl_idname),
+        nodeitems_utils.NodeItem(NodeAddSubtract.bl_idname),
+    ]),
+    NodeCategory("MODIFY", "Modify", items=[
+        nodeitems_utils.NodeItem(NodeFilter.bl_idname),
+        nodeitems_utils.NodeItem(NodeExpression.bl_idname),
     ]),
 ]
 

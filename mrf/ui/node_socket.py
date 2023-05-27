@@ -6,10 +6,9 @@ class NodeSocket(bpy.types.NodeSocket):
     bl_label = 'NodeSocket'
 
     text: bpy.props.StringProperty(name='Text', default='')
-    socket_color = (0.5, 0.5, 0.5, 1)
+    socket_color = (0.85, 0.85, 0.85, 1)
 
     def draw(self, context, layout, node, text):
-        print(self.name, self.text, self.label)
         layout.label(text=self.text)
 
     def draw_color(self, context, node):
