@@ -155,6 +155,26 @@ class MoveNodePairBase(MoveNodeBase, AbstractClass):
         self.child1 = MoveNodeAny("Child1")
 
 
+class MoveNodeNChildren(ListProperty):
+    class Child(ElementTree):
+        tag_name = "Item"
+
+        def __init__(self):
+            super().__init__()
+            self.weight = MoveParameterizedValueProperty("Weight")
+            # self.frame_filter =
+            self.node = MoveNodeAny("Node")
+
+    list_type = Child
+    tag_name = "Children"
+
+
+class MoveNodeNBase(MoveNodeBase, AbstractClass):
+    def __init__(self):
+        super().__init__()
+        self.children = MoveNodeNChildren()
+
+
 class MoveNodeRef(ElementProperty):
     value_types = (str)
 
@@ -262,6 +282,13 @@ class MoveBlend(MoveNodePairBase):
         self.weight = MoveParameterizedValueProperty("Weight")
 
 
+class MoveBlendN(MoveNodeNBase):
+    type = "BlendN"
+
+    def __init__(self):
+        super().__init__()
+
+
 class MoveAddSubtract(MoveNodePairBase):
     type = "AddSubtract"
 
@@ -305,6 +332,8 @@ class MoveNodeAny(ElementTree):
                 node = MoveClip.from_xml(element)
             elif node_type == "Blend":
                 node = MoveBlend.from_xml(element)
+            elif node_type == "BlendN":
+                node = MoveBlendN.from_xml(element)
             elif node_type == "AddSubtract":
                 node = MoveAddSubtract.from_xml(element)
             elif node_type == "Filter":

@@ -20,6 +20,7 @@ node_categories = [
     ]),
     NodeCategory("COMBINE", "Combine", items=[
         nodeitems_utils.NodeItem(NodeBlend.bl_idname),
+        nodeitems_utils.NodeItem(NodeBlendN.bl_idname),
         nodeitems_utils.NodeItem(NodeAddSubtract.bl_idname),
     ]),
     NodeCategory("MODIFY", "Modify", items=[

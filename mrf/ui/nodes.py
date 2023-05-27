@@ -89,6 +89,14 @@ class NodeBlend(NodeWithOutput):
         self.weight.draw("Weight", layout)
 
 
+class NodeBlendN(NodeWithOutput):
+    bl_idname = 'SOLLUMZ_NT_BlendN'
+    bl_label = 'Blend N'
+
+    def init(self, context):
+        super().init(context)
+
+
 class NodeAddSubtract(NodeWithOutput):
     bl_idname = 'SOLLUMZ_NT_AddSubtract'
     bl_label = 'Add-Subtract'
@@ -125,14 +133,11 @@ class NodeExpression(NodeWithOutput):
 #         self.create_input(NodeSocketInt.bl_idname, 'value', 'Value')
 #
 #
-# class NodeStateMachine(NodeBase):
-#     bl_idname = 'SOLLUMZ_NT_NodeStateMachine'
-#     bl_label = 'State Machine'
-#
-#     def init(self, context):
-#         self.create_input(NodeSocketFloat.bl_idname, 'value1', 'Value')
-#         self.create_input(NodeSocketFloat.bl_idname, 'value2', 'Value')
-#         self.create_output(NodeSocketFloat.bl_idname, 'output', "Output")
+
+class NodeStateMachine(NodeWithOutput, bpy.types.NodeCustomGroup):
+    bl_idname = 'SOLLUMZ_NT_StateMachine'
+    bl_label = 'State Machine'
+
 
 # import traceback
 # import sys
@@ -148,9 +153,11 @@ def register():
     bpy.utils.register_class(NodeEmpty)
     bpy.utils.register_class(NodeClip)
     bpy.utils.register_class(NodeBlend)
+    bpy.utils.register_class(NodeBlendN)
     bpy.utils.register_class(NodeAddSubtract)
     bpy.utils.register_class(NodeFilter)
     bpy.utils.register_class(NodeExpression)
+    bpy.utils.register_class(NodeStateMachine)
 
 
 def unregister():
@@ -158,6 +165,8 @@ def unregister():
     bpy.utils.unregister_class(NodeEmpty)
     bpy.utils.unregister_class(NodeClip)
     bpy.utils.unregister_class(NodeBlend)
+    bpy.utils.unregister_class(NodeBlendN)
     bpy.utils.unregister_class(NodeAddSubtract)
     bpy.utils.unregister_class(NodeFilter)
     bpy.utils.unregister_class(NodeExpression)
+    bpy.utils.unregister_class(NodeStateMachine)

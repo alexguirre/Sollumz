@@ -6,6 +6,7 @@ from ..tools.blenderhelper import create_empty_object
 from ..sollumz_properties import SollumType
 from .properties import MoveNetworkProperties, MoveNetworkBitProperties
 from .ui.node_tree import NodeTree
+from .ui.node_socket import NodeSocket
 from .ui.nodes import *
 
 
@@ -106,6 +107,20 @@ def create_anim_node_tree(tree: NodeTree, mn: MoveNodeBase, parent_frame=None):
         n = tree.nodes.new(NodeExpression.bl_idname)
         n_child = create_anim_node_tree(tree, mn.child, parent_frame)
         tree.links.new(n_child.outputs["output"], n.inputs["input"])
+    elif mn.type == "BlendN":
+        n = tree.nodes.new(NodeBlendN.bl_idname)
+        i = 1
+        for child in mn.children:
+            input_socket = "input%d" % i
+            n.create_input(NodeSocket.bl_idname, input_socket, "#%d" % i)
+            n_child = create_anim_node_tree(tree, child.node, parent_frame)
+            tree.links.new(n_child.outputs["output"], n.inputs[input_socket])
+            i += 1
+    elif mn.type == "StateMachine":
+        n = tree.nodes.new(NodeStateMachine.bl_idname)
+        frame = build_state_nodes(tree, mn, parent_frame)
+        if parent_frame is not None:
+            frame.parent = parent_frame
     else:
         raise TypeError("Invalid animation node type '%s'" % mn.type)
 
