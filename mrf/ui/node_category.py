@@ -27,6 +27,10 @@ node_categories = [
         nodeitems_utils.NodeItem(NodeFilter.bl_idname),
         nodeitems_utils.NodeItem(NodeExpression.bl_idname),
     ]),
+    NodeCategory("STATE_MACHINE", "State Machine", items=[
+        nodeitems_utils.NodeItem(NodeStateMachine.bl_idname),
+        nodeitems_utils.NodeItem(NodeState.bl_idname),
+    ]),
 ]
 
 

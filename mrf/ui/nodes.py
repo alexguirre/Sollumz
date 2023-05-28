@@ -1,7 +1,9 @@
 import bpy
+from abc import ABC as AbstractClass, abstractmethod
 from .node_tree import NodeTree
 from .node_socket import *
 from ..properties import ParameterizedFloatProperty, ParameterizedBoolProperty
+from ...cwxml.mrf import *
 
 
 class NodeBase(bpy.types.Node):
@@ -35,6 +37,10 @@ class NodeBase(bpy.types.Node):
         if output:
             self.outputs.remove(output)
 
+    @abstractmethod
+    def init_from_xml(self, node_xml):
+        raise NotImplementedError
+
 
 class NodeOutputAnimation(NodeBase):
     bl_idname = 'SOLLUMZ_NT_OutputAnimation'
@@ -42,6 +48,9 @@ class NodeOutputAnimation(NodeBase):
 
     def init(self, context):
         self.create_input(NodeSocket.bl_idname, "input", "Result")
+
+    def init_from_xml(self, node_xml):
+        raise Exception("NodeOutputAnimation cannot be initialized from XML")
 
 
 class NodeWithOutput(NodeBase):
@@ -55,6 +64,9 @@ class NodeEmpty(NodeWithOutput):
     bl_idname = 'SOLLUMZ_NT_Empty'
     bl_label = 'Empty'
 
+    def init_from_xml(self, node_xml: MoveNodeInvalid):
+        pass
+
 
 class NodeClip(NodeWithOutput):
     bl_idname = 'SOLLUMZ_NT_Clip'
@@ -64,6 +76,12 @@ class NodeClip(NodeWithOutput):
     rate: bpy.props.PointerProperty(name='Rate', type=ParameterizedFloatProperty)
     delta: bpy.props.PointerProperty(name='Delta', type=ParameterizedFloatProperty)
     looped: bpy.props.PointerProperty(name='Looped', type=ParameterizedBoolProperty)
+
+    def init_from_xml(self, node_xml: MoveNodeClip):
+        self.phase.set(node_xml.phase)
+        self.rate.set(node_xml.rate)
+        self.delta.set(node_xml.delta)
+        self.looped.set(node_xml.looped)
 
     def draw_buttons(self, context, layout):
         # self.clip
@@ -80,6 +98,9 @@ class NodeBlend(NodeWithOutput):
 
     weight: bpy.props.PointerProperty(name='Weight', type=ParameterizedFloatProperty)
 
+    def init_from_xml(self, node_xml: MoveNodeBlend):
+        self.weight.set(node_xml.weight)
+
     def init(self, context):
         super().init(context)
         self.create_input(NodeSocket.bl_idname, "input1", "A")
@@ -93,6 +114,9 @@ class NodeBlendN(NodeWithOutput):
     bl_idname = 'SOLLUMZ_NT_BlendN'
     bl_label = 'Blend N'
 
+    def init_from_xml(self, node_xml: MoveNodeBlendN):
+        pass
+
     def init(self, context):
         super().init(context)
 
@@ -100,6 +124,9 @@ class NodeBlendN(NodeWithOutput):
 class NodeAddSubtract(NodeWithOutput):
     bl_idname = 'SOLLUMZ_NT_AddSubtract'
     bl_label = 'Add-Subtract'
+
+    def init_from_xml(self, node_xml: MoveNodeAddSubtract):
+        pass
 
     def init(self, context):
         super().init(context)
@@ -111,6 +138,9 @@ class NodeFilter(NodeWithOutput):
     bl_idname = 'SOLLUMZ_NT_Filter'
     bl_label = 'Filter'
 
+    def init_from_xml(self, node_xml: MoveNodeFilter):
+        pass
+
     def init(self, context):
         super().init(context)
         self.create_input(NodeSocket.bl_idname, "input", "In")
@@ -120,31 +150,52 @@ class NodeExpression(NodeWithOutput):
     bl_idname = 'SOLLUMZ_NT_Expression'
     bl_label = 'Expression'
 
+    def init_from_xml(self, node_xml: MoveNodeExpression):
+        pass
+
     def init(self, context):
         super().init(context)
         self.create_input(NodeSocket.bl_idname, "input", "In")
 
 
-# class NodeState(NodeBase):
-#     bl_idname = 'SOLLUMZ_NT_NodeState'
-#     bl_label = 'State'
-#
-#     def init(self, context):
-#         self.create_input(NodeSocketInt.bl_idname, 'value', 'Value')
-#
-#
+class NodeState(bpy.types.NodeCustomGroup):
+    bl_idname = 'SOLLUMZ_NT_NodeState'
+    bl_label = 'State'
+
+    def init(self, context):
+        self.node_tree = bpy.data.node_groups.new(self.name, NodeTree.bl_idname)
+        print(self.node_tree)
+        if hasattr(self.node_tree, 'is_hidden'):
+            self.node_tree.is_hidden = False
+        self.node_tree.nodes.new('NodeGroupInput')
+        self.node_tree.nodes.new('NodeGroupOutput')
+
+    # Draw the node components
+    # def draw_buttons(self, context, layout):
+        #print("draw_buttons(...)")
+        #row=layout.row()
+        #row.prop(self, 'expressionText', text='Expression')
+        #row=layout.row()
+        #row.operator('node.node_dynamic_maths_expression_editwithin', text='Edit')
+
+
 
 class NodeStateMachine(NodeWithOutput, bpy.types.NodeCustomGroup):
     bl_idname = 'SOLLUMZ_NT_StateMachine'
     bl_label = 'State Machine'
 
+    def init_from_xml(self, node_xml: MoveNodeStateMachine):
+        pass
+
 
 # import traceback
 # import sys
 called = False
+
+
 def register():
     global called
-    if called: # TODO: investigate why register() is getting called twice
+    if called:  # TODO: investigate why register() is getting called twice
         return
     called = True
     # print("nodes register <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
@@ -157,6 +208,7 @@ def register():
     bpy.utils.register_class(NodeAddSubtract)
     bpy.utils.register_class(NodeFilter)
     bpy.utils.register_class(NodeExpression)
+    bpy.utils.register_class(NodeState)
     bpy.utils.register_class(NodeStateMachine)
 
 
@@ -169,4 +221,5 @@ def unregister():
     bpy.utils.unregister_class(NodeAddSubtract)
     bpy.utils.unregister_class(NodeFilter)
     bpy.utils.unregister_class(NodeExpression)
+    bpy.utils.unregister_class(NodeState)
     bpy.utils.unregister_class(NodeStateMachine)
