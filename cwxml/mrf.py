@@ -691,7 +691,7 @@ class MoveNodeExpression(MoveNodeWithChildBase):
         self.variables = MoveExpressionVariablesList()
 
 
-class MoveNodeCapture(MoveNodeBase):
+class MoveNodeCapture(MoveNodeWithChildBase):
     type = "Capture"
 
     def __init__(self):
@@ -756,7 +756,7 @@ class MoveNodeInvalid(MoveNodeBase):
 
 
 class MoveNodeJointLimit(MoveNodeWithChildAndFilterBase):
-    type = "Invalid"
+    type = "JointLimit"
 
 
 class MoveNodeSubNetwork(MoveNodeBase):
