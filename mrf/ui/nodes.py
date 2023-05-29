@@ -3,6 +3,7 @@ from .node_tree import NodeTree
 from .node_socket import *
 from ..properties import ParameterizedFloatProperty, ParameterizedBoolProperty
 from ...cwxml.mrf import *
+from ...sollumz_helper import SOLLUMZ_OT_base
 
 
 # BASE NODE CLASSES
@@ -89,7 +90,7 @@ class NodeNx1(NodeBase):
         self.create_output(NodeSocket.bl_idname, "output", "Out")
         input = self.create_input(NodeSocket.bl_idname, "inputs", "In")
         # input.is_multi_input = True
-        input.link_limit = 64  # .mrf uses 6 bits to store the children count
+        input.link_limit = 63  # .mrf uses 6 bits to store the children count
 
 
 # IMPLEMENTED NODE CLASSES
@@ -320,6 +321,54 @@ class NodeSubNetwork(Node0x1):
         pass
 
 
+class SOLLUMZ_OT_MOVE_NETWORK_state_new_transition(SOLLUMZ_OT_base, bpy.types.Operator):
+    bl_idname = "sollumz.move_network_state_new_transition"
+    bl_label = "New Transition"
+    bl_action = bl_label
+
+    node: bpy.props.StringProperty()
+
+    @classmethod
+    def poll(cls, context):
+        return (context.space_data.type == "NODE_EDITOR" and
+                context.space_data.tree_type == NodeTree.bl_idname and
+                context.space_data.edit_tree is not None and
+                context.space_data.edit_tree.bl_idname == NodeTree.bl_idname)
+
+    def run(self, context):
+        tree = context.space_data.edit_tree
+        node = tree.nodes[self.node]
+        node.add_transition(tree)
+
+
+class NodeState_Start(NodeBase):
+    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_NodeState_Start'
+    bl_label = 'State (Start)'
+
+    def init(self, context):
+        self.create_output(NodeSocket.bl_idname, "start", "Start")
+
+
+class NodeState_New(NodeBase):
+    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_NodeState_New'
+    bl_label = 'State (New)'
+
+    def init(self, context):
+        input = self.create_input(NodeSocketTransitionTarget.bl_idname, "input", "In")
+        # input.is_multi_input = True
+        input.link_limit = 255  # .mrf uses 8 bits to store the state count
+
+    def draw_buttons(self, context, layout):
+        layout.operator(SOLLUMZ_OT_MOVE_NETWORK_state_new_transition.bl_idname).node = self.name
+
+    def add_transition(self, tree, target_state=None):
+        i = len(self.outputs)
+        transition_socket_name = "transition%d" % i
+        self.create_output(NodeSocketTransitionSource.bl_idname, transition_socket_name, "Transition #%d" % i)
+        if target_state is not None:
+            tree.links.new(self.outputs[transition_socket_name], target_state.inputs["input"])
+
+
 classes = [
     NodeOutputAnimation,
     NodeStateMachine,
@@ -346,8 +395,10 @@ classes = [
     NodeInvalid,
     NodeJointLimit,
     NodeSubNetwork,
-]
 
+    NodeState_Start,
+    NodeState_New,
+]
 
 # import traceback
 # import sys

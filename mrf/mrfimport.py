@@ -65,6 +65,25 @@ def build_state_nodes(tree: NodeTree, state, parent_frame=None):
             state_machine_frame.parent = parent_frame
         for child in sm.states:
             build_state_nodes(tree, child, parent_frame=state_machine_frame)
+
+        states_nodes = {}
+        states_by_name = {}
+        for state in sm.states:
+            states_nodes[state] = tree.nodes.new(NodeState_New.bl_idname)
+            states_nodes[state].name = "State.%s" % state.name
+            states_nodes[state].label = state.name
+            states_by_name[state.name] = state
+        for state, node in states_nodes.items():
+            if state.transitions is None:
+                continue
+            for t in state.transitions:
+                target_node = states_nodes[states_by_name[t.target_state]]
+                node.add_transition(tree, target_node)
+        initial_node = states_nodes[states_by_name[sm.initial_state]]
+        start_node = tree.nodes.new(NodeState_Start.bl_idname)
+        start_node.name = "%s.Start" % sm.name
+        start_node.label = "Start '%s'" % sm.name
+        tree.links.new(start_node.outputs["start"], initial_node.inputs["input"])
         return state_machine_frame
 
     def _build_inlined_state_machine_nodes(sm: MoveNodeStateMachine):
@@ -164,6 +183,9 @@ def layout_node_tree(node_tree):
     for n in node_tree.nodes:
         if isinstance(n, bpy.types.NodeFrame):
             frames.append(n)
+            continue
+
+        if isinstance(n, NodeState_New) or isinstance(n, NodeState_Start):
             continue
 
         if len(n.outputs) != 0:

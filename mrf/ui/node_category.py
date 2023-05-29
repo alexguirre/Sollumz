@@ -45,6 +45,8 @@ node_categories = [
         nodeitems_utils.NodeItem(NodeStateMachine.bl_idname),
         nodeitems_utils.NodeItem(NodeInlinedStateMachine.bl_idname),
         nodeitems_utils.NodeItem(NodeState.bl_idname),
+        nodeitems_utils.NodeItem(NodeState_Start.bl_idname),
+        nodeitems_utils.NodeItem(NodeState_New.bl_idname),
     ]),
     NodeCategory("LAYOUT", "Layout", items=[
         nodeitems_utils.NodeItem('NodeFrame'),
