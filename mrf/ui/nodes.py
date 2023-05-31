@@ -1,7 +1,7 @@
 import bpy
 from .node_tree import NodeTree
 from .node_socket import *
-from ..properties import ParameterizedFloatProperty, ParameterizedBoolProperty
+from ..properties import ParameterizedFloatProperty, ParameterizedBoolProperty, NodeStateTransitionProperties
 from ...cwxml.mrf import *
 from ...sollumz_helper import SOLLUMZ_OT_base
 
@@ -338,7 +338,7 @@ class SOLLUMZ_OT_MOVE_NETWORK_state_new_transition(SOLLUMZ_OT_base, bpy.types.Op
     def run(self, context):
         tree = context.space_data.edit_tree
         node = tree.nodes[self.node]
-        node.add_transition(tree)
+        # node.add_transition(tree)
 
 
 class NodeState_Start(NodeBase):
@@ -353,20 +353,25 @@ class NodeState_New(NodeBase):
     bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_NodeState_New'
     bl_label = 'State (New)'
 
+    transitions: bpy.props.CollectionProperty(type=NodeStateTransitionProperties)
+
     def init(self, context):
-        input = self.create_input(NodeSocketTransitionTarget.bl_idname, "input", "In")
+        pass
+        # input = self.create_input(NodeSocketTransitionTarget.bl_idname, "input", "In")
         # input.is_multi_input = True
-        input.link_limit = 255  # .mrf uses 8 bits to store the state count
+        # input.link_limit = 255  # .mrf uses 8 bits to store the state count
 
     def draw_buttons(self, context, layout):
         layout.operator(SOLLUMZ_OT_MOVE_NETWORK_state_new_transition.bl_idname).node = self.name
 
-    def add_transition(self, tree, target_state=None):
-        i = len(self.outputs)
-        transition_socket_name = "transition%d" % i
-        self.create_output(NodeSocketTransitionSource.bl_idname, transition_socket_name, "Transition #%d" % i)
-        if target_state is not None:
-            tree.links.new(self.outputs[transition_socket_name], target_state.inputs["input"])
+    def add_transition(self, target_state):
+        t = self.transitions.add()
+        t.target_state = target_state.name
+        # i = len(self.outputs)
+        # transition_socket_name = "transition%d" % i
+        # self.create_output(NodeSocketTransitionSource.bl_idname, transition_socket_name, "Transition #%d" % i)
+        # if target_state is not None:
+        #     tree.links.new(self.outputs[transition_socket_name], target_state.inputs["input"])
 
 
 classes = [

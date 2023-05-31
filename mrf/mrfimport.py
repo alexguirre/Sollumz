@@ -4,7 +4,6 @@ import bpy
 from ..cwxml.mrf import *
 from ..tools.blenderhelper import create_empty_object
 from ..sollumz_properties import SollumType
-from .properties import MoveNetworkProperties, MoveNetworkBitProperties
 from .ui.node_tree import NodeTree
 from .ui.node_socket import NodeSocket
 from .ui.nodes import *
@@ -78,12 +77,14 @@ def build_state_nodes(tree: NodeTree, state, parent_frame=None):
                 continue
             for t in state.transitions:
                 target_node = states_nodes[states_by_name[t.target_state]]
-                node.add_transition(tree, target_node)
+                node.add_transition(target_node)
         initial_node = states_nodes[states_by_name[sm.initial_state]]
-        start_node = tree.nodes.new(NodeState_Start.bl_idname)
+        start_node = tree.nodes.new(NodeState_New.bl_idname)
         start_node.name = "%s.Start" % sm.name
         start_node.label = "Start '%s'" % sm.name
-        tree.links.new(start_node.outputs["start"], initial_node.inputs["input"])
+        start_node.hide = True
+        start_node.add_transition(initial_node)
+        # tree.links.new(start_node.outputs["start"], initial_node.inputs["input"])
         return state_machine_frame
 
     def _build_inlined_state_machine_nodes(sm: MoveNodeStateMachine):
@@ -116,7 +117,7 @@ def build_state_nodes(tree: NodeTree, state, parent_frame=None):
         raise TypeError("Invalid state node type '%s'" % state.type)
 
 
-_xml_type_to_ui_type = {
+_nodes_xml_type_to_ui_type = {
     MoveNodeStateMachine.type: NodeStateMachine,
     MoveNodeTail.type: NodeTail,
     MoveNodeInlinedStateMachine.type: NodeInlinedStateMachine,
@@ -146,8 +147,8 @@ _xml_type_to_ui_type = {
 
 def create_anim_node_tree(tree: NodeTree, mn: MoveNodeBase, parent_frame=None):
     n = None
-    if mn.type in _xml_type_to_ui_type:
-        n = tree.nodes.new(_xml_type_to_ui_type[mn.type].bl_idname)
+    if mn.type in _nodes_xml_type_to_ui_type:
+        n = tree.nodes.new(_nodes_xml_type_to_ui_type[mn.type].bl_idname)
         n.init_from_xml(mn)
     else:
         raise TypeError("Invalid animation node type '%s'" % mn.type)
