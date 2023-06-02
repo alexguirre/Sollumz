@@ -1,5 +1,5 @@
 import bpy
-from ..cwxml.mrf import MoveParameterizedValueProperty
+from ..cwxml.mrf import MoveParameterizedValueProperty, MoveParameterizedAssetProperty, MoveParameterizedClipProperty
 
 
 # class MoveNetworkBitProperties(bpy.types.PropertyGroup):
@@ -48,7 +48,7 @@ class ParameterizedBoolProperty(bpy.types.PropertyGroup):
         if v.value is not None:
             self.use_parameter = False
             self.value = bool(v.value)
-        elif v.parameter:
+        elif v.parameter is not None:
             self.use_parameter = True
             self.parameter = v.parameter
 
@@ -59,6 +59,65 @@ class ParameterizedBoolProperty(bpy.types.PropertyGroup):
         else:
             row.prop(self, 'value', text=name)
         row.prop(self, 'use_parameter', toggle=1, icon='LINKED', icon_only=True)
+
+
+class ParameterizedAssetProperty(bpy.types.PropertyGroup):
+    use_parameter: bpy.props.BoolProperty(name="Use Parameter", default=False)
+    dictionary_name: bpy.props.StringProperty(name="Dictionary", default="")
+    name: bpy.props.StringProperty(name="Name", default="")
+    parameter: bpy.props.StringProperty(name="Parameter", default="")
+
+    def set(self, v: MoveParameterizedAssetProperty):
+        if v.dictionary_name is not None and v.name is not None:
+            self.use_parameter = False
+            self.dictionary_name = v.dictionary_name
+            self.name = v.name
+        elif v.parameter is not None:
+            self.use_parameter = True
+            self.parameter = v.parameter
+
+    def draw(self, name, layout):
+        if self.use_parameter:
+            row = layout.row()
+            row.prop(self, 'parameter', text=name)
+            row.prop(self, 'use_parameter', toggle=1, icon='LINKED', icon_only=True)
+        else:
+            row = layout.row()
+            row.label(text=name)
+            row.prop(self, 'use_parameter', toggle=1, icon='LINKED', icon_only=True)
+            layout.prop(self, 'dictionary_name', text="Dictionary")
+            layout.prop(self, 'name', text="Name")
+
+
+class ParameterizedClipProperty(bpy.types.PropertyGroup):
+    use_parameter: bpy.props.BoolProperty(name="Use Parameter", default=False)
+    container_type: bpy.props.StringProperty(name="Container Type", default="")
+    container_name: bpy.props.StringProperty(name="Container", default="")
+    name: bpy.props.StringProperty(name="Name", default="")
+    parameter: bpy.props.StringProperty(name="Parameter", default="")
+
+    def set(self, v: MoveParameterizedClipProperty):
+        if v.container_type is not None and v.container_name is not None and v.name is not None:
+            self.use_parameter = False
+            self.container_type = v.container_type
+            self.container_name = v.container_name
+            self.name = v.name
+        elif v.parameter is not None:
+            self.use_parameter = True
+            self.parameter = v.parameter
+
+    def draw(self, name, layout):
+        if self.use_parameter:
+            row = layout.row()
+            row.prop(self, 'parameter', text=name)
+            row.prop(self, 'use_parameter', toggle=1, icon='LINKED', icon_only=True)
+        else:
+            row = layout.row()
+            row.label(text=name)
+            row.prop(self, 'use_parameter', toggle=1, icon='LINKED', icon_only=True)
+            layout.prop(self, 'container_type', text="Container Type")
+            layout.prop(self, 'container_name', text="Container")
+            layout.prop(self, 'name', text="Name")
 
 
 class NodeStateTransitionProperties(bpy.types.PropertyGroup):

@@ -1,7 +1,7 @@
 import bpy
 from .node_tree import NodeTree
 from .node_socket import *
-from ..properties import ParameterizedFloatProperty, ParameterizedBoolProperty, NodeStateTransitionProperties
+from ..properties import ParameterizedFloatProperty, ParameterizedBoolProperty, ParameterizedAssetProperty, ParameterizedClipProperty, NodeStateTransitionProperties
 from ...cwxml.mrf import *
 from ...sollumz_helper import SOLLUMZ_OT_base
 
@@ -125,44 +125,70 @@ class NodeBlend(Node2x1):
     bl_label = 'Blend'
 
     weight: bpy.props.PointerProperty(name='Weight', type=ParameterizedFloatProperty)
+    frame_filter: bpy.props.PointerProperty(name='Frame Filter', type=ParameterizedAssetProperty)
 
     def init_from_xml(self, node_xml: MoveNodeBlend):
         self.weight.set(node_xml.weight)
+        self.frame_filter.set(node_xml.frame_filter)
 
     def draw_buttons(self, context, layout):
         self.weight.draw("Weight", layout)
+        self.frame_filter.draw("Frame Filter", layout)
 
 
 class NodeAddSubtract(Node2x1):
     bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_NodeAddSubtract'
     bl_label = 'Add-Subtract'
 
+    weight: bpy.props.PointerProperty(name='Weight', type=ParameterizedFloatProperty)
+    frame_filter: bpy.props.PointerProperty(name='Frame Filter', type=ParameterizedAssetProperty)
+
     def init_from_xml(self, node_xml: MoveNodeAddSubtract):
-        pass
+        self.weight.set(node_xml.weight)
+        self.frame_filter.set(node_xml.frame_filter)
+
+    def draw_buttons(self, context, layout):
+        self.weight.draw("Weight", layout)
+        self.frame_filter.draw("Frame Filter", layout)
 
 
 class NodeFilter(Node1x1):
     bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_NodeFilter'
     bl_label = 'Filter'
 
+    frame_filter: bpy.props.PointerProperty(name='Frame Filter', type=ParameterizedAssetProperty)
+
     def init_from_xml(self, node_xml: MoveNodeFilter):
-        pass
+        self.frame_filter.set(node_xml.frame_filter)
+
+    def draw_buttons(self, context, layout):
+        self.frame_filter.draw("Frame Filter", layout)
 
 
 class NodeMirror(Node1x1):
     bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_NodeMirror'
     bl_label = 'Mirror'
 
+    frame_filter: bpy.props.PointerProperty(name='Frame Filter', type=ParameterizedAssetProperty)
+
     def init_from_xml(self, node_xml: MoveNodeMirror):
-        pass
+        self.frame_filter.set(node_xml.frame_filter)
+
+    def draw_buttons(self, context, layout):
+        self.frame_filter.draw("Frame Filter", layout)
 
 
 class NodeFrame(Node0x1):
     bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_NodeFrame'
     bl_label = 'Frame'
 
+    frame: bpy.props.StringProperty(name='Frame', default='')
+
     def init_from_xml(self, node_xml: MoveNodeFrame):
-        pass
+        self.frame = node_xml.frame.parameter
+
+    def draw_buttons(self, context, layout):
+        layout.prop(self, "frame")
 
 
 class NodeIk(Node0x1):
@@ -185,19 +211,21 @@ class NodeClip(Node0x1):
     bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_NodeClip'
     bl_label = 'Clip'
 
+    clip: bpy.props.PointerProperty(name='Clip', type=ParameterizedClipProperty)
     phase: bpy.props.PointerProperty(name='Phase', type=ParameterizedFloatProperty)
     rate: bpy.props.PointerProperty(name='Rate', type=ParameterizedFloatProperty)
     delta: bpy.props.PointerProperty(name='Delta', type=ParameterizedFloatProperty)
     looped: bpy.props.PointerProperty(name='Looped', type=ParameterizedBoolProperty)
 
     def init_from_xml(self, node_xml: MoveNodeClip):
+        self.clip.set(node_xml.clip)
         self.phase.set(node_xml.phase)
         self.rate.set(node_xml.rate)
         self.delta.set(node_xml.delta)
         self.looped.set(node_xml.looped)
 
     def draw_buttons(self, context, layout):
-        # self.clip
+        self.clip.draw("Clip", layout)
         self.phase.draw("Phase", layout)
         self.rate.draw("Rate", layout)
         self.delta.draw("Delta", layout)
@@ -209,32 +237,55 @@ class NodeExtrapolate(Node1x1):
     bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_NodeExtrapolate'
     bl_label = 'Extrapolate'
 
+    damping: bpy.props.PointerProperty(name='Damping', type=ParameterizedFloatProperty)
+
     def init_from_xml(self, node_xml: MoveNodeExtrapolate):
-        pass
+        self.damping.set(node_xml.damping)
+
+    def draw_buttons(self, context, layout):
+        self.damping.draw("Damping", layout)
 
 
 class NodeExpression(Node1x1):
     bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_NodeExpression'
     bl_label = 'Expression'
 
+    weight: bpy.props.PointerProperty(name='Weight', type=ParameterizedFloatProperty)
+    expression: bpy.props.PointerProperty(name='Expression', type=ParameterizedAssetProperty)
+
     def init_from_xml(self, node_xml: MoveNodeExpression):
-        pass
+        self.weight.set(node_xml.weight)
+        self.expression.set(node_xml.expression)
+
+    def draw_buttons(self, context, layout):
+        self.weight.draw("Weight", layout)
+        self.expression.draw("Expression", layout)
 
 
 class NodeCapture(Node1x1):
     bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_NodeCapture'
     bl_label = 'Capture'
 
+    frame: bpy.props.StringProperty(name='Frame', default='')
+
     def init_from_xml(self, node_xml: MoveNodeCapture):
-        pass
+        self.frame = node_xml.frame.parameter
+
+    def draw_buttons(self, context, layout):
+        layout.prop(self, "frame")
 
 
 class NodeProxy(Node0x1):
     bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_NodeProxy'
     bl_label = 'Proxy'
 
+    node_parameter_name: bpy.props.StringProperty(name='Node Parameter', default='')
+
     def init_from_xml(self, node_xml: MoveNodeProxy):
-        pass
+        self.node_parameter_name = node_xml.node_parameter_name
+
+    def draw_buttons(self, context, layout):
+        layout.prop(self, "node_parameter_name")
 
 
 class NodeAddN(NodeNx1):

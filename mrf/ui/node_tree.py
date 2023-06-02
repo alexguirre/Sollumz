@@ -51,7 +51,7 @@ def _get_node_pos(node):
 
 
 def calc_transition_arrow(node_from, node_to):
-    margin = 10
+    margin = 5
 
     def _get_corner(left, right, top, bottom, corner_id):
         if corner_id == 0:  # top-left
@@ -113,10 +113,12 @@ def calc_transition_arrow(node_from, node_to):
 
 
 def draw_transition_arrows(pos_pairs):
-    source_color = (0.1, 0.1, 0.7, 1)
-    target_color = (0.2, 0.8, 0.1, 1)
-    rot1 = mathutils.Matrix.Rotation(math.pi * 0.175, 2)
-    rot2 = mathutils.Matrix.Rotation(-math.pi * 0.175, 2)
+    # source_color = (0.1, 0.1, 0.7, 1)
+    # target_color = (0.2, 0.8, 0.1, 1)
+    source_color = (0.85, 0.85, 0.85, 1)
+    target_color = (0.85, 0.85, 0.85, 1)
+    rot1 = mathutils.Matrix.Rotation(math.pi * 0.1, 2)
+    rot2 = mathutils.Matrix.Rotation(-math.pi * 0.1, 2)
     for vfrom, vto in pos_pairs:
         vdir1 = (vfrom - vto).normalized()
         vdir2 = (vfrom - vto).normalized()
@@ -137,8 +139,39 @@ def draw_transition_arrows(pos_pairs):
         ]
         batch = batch_for_shader(shader, 'LINES', {"pos": coords, "color": colors})
         # shader.uniform_float("color", (1, 1, 0, 1))
-        gpu.state.line_width_set(5)
+        gpu.state.line_width_set(3)
         batch.draw(shader)
+
+
+def fix_transition_arrows_overlaps(pos_pairs):
+    fixed = set()
+    for i in range(len(pos_pairs)):
+        if i in fixed:
+            continue
+
+        vfrom1, vto1 = pos_pairs[i]
+        overlaps = []
+        for j in range(len(pos_pairs)):
+            if i == j or j in fixed:
+                continue
+            vfrom2, vto2 = pos_pairs[j]
+            if (vfrom1 == vfrom1 and vto1 == vto2) or (vfrom1 == vto2 and vto1 == vfrom2):
+                overlaps.append(j)
+                fixed.add(i)
+                fixed.add(j)
+
+        if len(overlaps) > 1:
+            # raise Exception("States can have more than one transition to the same state!")
+            continue
+
+        if len(overlaps) == 0:
+            continue
+
+        j = overlaps[0]
+        vfrom2, vto2 = pos_pairs[j]
+        perp = (vto1 - vfrom1).normalized().orthogonal()
+        pos_pairs[i] = (vfrom1 + perp * 7, vto1 + perp * 7)
+        pos_pairs[j] = (vfrom2 - perp * 7, vto2 - perp * 7)
 
 
 def draw_node_editor_background():
@@ -156,6 +189,7 @@ def draw_node_editor_background():
             target_node = node_tree.nodes[t.target_state]
             transition_arrows.append(calc_transition_arrow(node, target_node))
 
+    fix_transition_arrows_overlaps(transition_arrows)
     draw_transition_arrows(transition_arrows)
 
 
