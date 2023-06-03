@@ -120,7 +120,7 @@ class ParameterizedClipProperty(bpy.types.PropertyGroup):
             layout.prop(self, 'name', text="Name")
 
 
-class NodeStateTransitionProperties(bpy.types.PropertyGroup):
+class SMTransitionProperties(bpy.types.PropertyGroup):
     target_state: bpy.props.StringProperty(name="Target State", default="")
 
 

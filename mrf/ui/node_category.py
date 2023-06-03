@@ -1,63 +1,75 @@
 import bpy
 import nodeitems_utils
-from .node_tree import NodeTree
+from .node_tree import NetworkTree
 from .nodes import *
 
 
-class NodeCategory(nodeitems_utils.NodeCategory):
+class ATNodeCategory(nodeitems_utils.NodeCategory):
     @classmethod
     def poll(cls, context):
-        return context.space_data.tree_type == NodeTree.bl_idname
+        return (context.space_data.tree_type == NetworkTree.bl_idname and
+                context.space_data.edit_tree is not None and
+                context.space_data.edit_tree.network_tree_type == "ANIMATION_TREE")
+
+
+class SMNodeCategory(nodeitems_utils.NodeCategory):
+    @classmethod
+    def poll(cls, context):
+        return (context.space_data.tree_type == NetworkTree.bl_idname and
+                context.space_data.edit_tree is not None and
+                context.space_data.edit_tree.network_tree_type == "STATE_MACHINE")
 
 
 node_categories = [
-    NodeCategory("INPUT", "Input", items=[
-        nodeitems_utils.NodeItem(NodeTail.bl_idname),
-        nodeitems_utils.NodeItem(NodeFrame.bl_idname),
-        nodeitems_utils.NodeItem(NodeIk.bl_idname),
-        nodeitems_utils.NodeItem(NodeClip.bl_idname),
-        nodeitems_utils.NodeItem(NodeProxy.bl_idname),
-        nodeitems_utils.NodeItem(NodeIdentity.bl_idname),
-        nodeitems_utils.NodeItem(NodePose.bl_idname),
-        nodeitems_utils.NodeItem(NodeInvalid.bl_idname),
-        nodeitems_utils.NodeItem(NodeSubNetwork.bl_idname),
+    ATNodeCategory("INPUT", "Input", items=[
+        nodeitems_utils.NodeItem(ATNodeTail.bl_idname),
+        nodeitems_utils.NodeItem(ATNodeFrame.bl_idname),
+        nodeitems_utils.NodeItem(ATNodeIk.bl_idname),
+        nodeitems_utils.NodeItem(ATNodeClip.bl_idname),
+        nodeitems_utils.NodeItem(ATNodeProxy.bl_idname),
+        nodeitems_utils.NodeItem(ATNodeIdentity.bl_idname),
+        nodeitems_utils.NodeItem(ATNodePose.bl_idname),
+        nodeitems_utils.NodeItem(ATNodeInvalid.bl_idname),
+        nodeitems_utils.NodeItem(ATNodeSubNetwork.bl_idname),
     ]),
-    NodeCategory("OUTPUT", "Output", items=[
-        nodeitems_utils.NodeItem(NodeOutputAnimation.bl_idname),
+    ATNodeCategory("OUTPUT", "Output", items=[
+        nodeitems_utils.NodeItem(ATNodeOutputAnimation.bl_idname),
     ]),
-    NodeCategory("COMBINE", "Combine", items=[
-        nodeitems_utils.NodeItem(NodeBlend.bl_idname),
-        nodeitems_utils.NodeItem(NodeBlendN.bl_idname),
-        nodeitems_utils.NodeItem(NodeAddSubtract.bl_idname),
-        nodeitems_utils.NodeItem(NodeAddN.bl_idname),
-        nodeitems_utils.NodeItem(NodeMerge.bl_idname),
-        nodeitems_utils.NodeItem(NodeMergeN.bl_idname),
+    ATNodeCategory("COMBINE", "Combine", items=[
+        nodeitems_utils.NodeItem(ATNodeBlend.bl_idname),
+        nodeitems_utils.NodeItem(ATNodeBlendN.bl_idname),
+        nodeitems_utils.NodeItem(ATNodeAddSubtract.bl_idname),
+        nodeitems_utils.NodeItem(ATNodeAddN.bl_idname),
+        nodeitems_utils.NodeItem(ATNodeMerge.bl_idname),
+        nodeitems_utils.NodeItem(ATNodeMergeN.bl_idname),
     ]),
-    NodeCategory("MODIFY", "Modify", items=[
-        nodeitems_utils.NodeItem(NodeFilter.bl_idname),
-        nodeitems_utils.NodeItem(NodeMirror.bl_idname),
-        nodeitems_utils.NodeItem(NodeExtrapolate.bl_idname),
-        nodeitems_utils.NodeItem(NodeExpression.bl_idname),
-        nodeitems_utils.NodeItem(NodeCapture.bl_idname),
-        nodeitems_utils.NodeItem(NodeJointLimit.bl_idname),
+    ATNodeCategory("MODIFY", "Modify", items=[
+        nodeitems_utils.NodeItem(ATNodeFilter.bl_idname),
+        nodeitems_utils.NodeItem(ATNodeMirror.bl_idname),
+        nodeitems_utils.NodeItem(ATNodeExtrapolate.bl_idname),
+        nodeitems_utils.NodeItem(ATNodeExpression.bl_idname),
+        nodeitems_utils.NodeItem(ATNodeCapture.bl_idname),
+        nodeitems_utils.NodeItem(ATNodeJointLimit.bl_idname),
     ]),
-    NodeCategory("STATE_MACHINE", "State Machine", items=[
-        nodeitems_utils.NodeItem(NodeStateMachine.bl_idname),
-        nodeitems_utils.NodeItem(NodeInlinedStateMachine.bl_idname),
-        nodeitems_utils.NodeItem(NodeState.bl_idname),
-        nodeitems_utils.NodeItem(NodeState_Start.bl_idname),
-        nodeitems_utils.NodeItem(NodeState_New.bl_idname),
+    ATNodeCategory("STATE_MACHINE", "State Machine", items=[
+        nodeitems_utils.NodeItem(ATNodeStateMachine.bl_idname),
+        nodeitems_utils.NodeItem(ATNodeInlinedStateMachine.bl_idname),
+        nodeitems_utils.NodeItem(ATNodeState.bl_idname),
     ]),
-    NodeCategory("LAYOUT", "Layout", items=[
+    ATNodeCategory("LAYOUT", "Layout", items=[
         nodeitems_utils.NodeItem('NodeFrame'),
         nodeitems_utils.NodeItem('NodeReroute'),
+    ]),
+    SMNodeCategory("STATE_MACHINE_GRAPH", "State Machine", items=[
+        nodeitems_utils.NodeItem(SMNodeStart.bl_idname),
+        nodeitems_utils.NodeItem(SMNodeState.bl_idname),
     ]),
 ]
 
 
 def register():
-    nodeitems_utils.register_node_categories("MoveNetworkNodeCategory", node_categories)
+    nodeitems_utils.register_node_categories("SOLLUMZ_NT_MOVE_NETWORK_Categories", node_categories)
 
 
 def unregister():
-    nodeitems_utils.unregister_node_categories("MoveNetworkNodeCategory")
+    nodeitems_utils.unregister_node_categories("SOLLUMZ_NT_MOVE_NETWORK_Categories")

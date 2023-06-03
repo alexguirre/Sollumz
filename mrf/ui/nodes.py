@@ -1,18 +1,37 @@
 import bpy
-from .node_tree import NodeTree
+from .node_tree import NetworkTree
 from .node_socket import *
-from ..properties import ParameterizedFloatProperty, ParameterizedBoolProperty, ParameterizedAssetProperty, ParameterizedClipProperty, NodeStateTransitionProperties
+from ..properties import ParameterizedFloatProperty, ParameterizedBoolProperty, ParameterizedAssetProperty, ParameterizedClipProperty, SMTransitionProperties
 from ...cwxml.mrf import *
 from ...sollumz_helper import SOLLUMZ_OT_base
 
 
 # BASE NODE CLASSES
-class NodeBase(bpy.types.Node):
+class StateMachineNodeBase(bpy.types.Node):
+    """
+    Base class for nodes in a state machine transition graph.
+    """
+
+    bl_label = "State"
+
+    @classmethod
+    def poll(cls, ntree):
+        return ntree.bl_idname == NetworkTree.bl_idname
+
+
+class AnimationTreeNodeBase(bpy.types.Node):
+    """
+    Base class for nodes in an animation tree.
+    """
+
     bl_label = "Node"
 
     @classmethod
     def poll(cls, ntree):
-        return ntree.bl_idname == NodeTree.bl_idname
+        return ntree.bl_idname == NetworkTree.bl_idname
+
+    def init_from_xml(self, node_xml):
+        raise NotImplementedError
 
     def create_input(self, socket_type, socket_name, socket_label):
         if self.inputs.get(socket_name):
@@ -40,12 +59,9 @@ class NodeBase(bpy.types.Node):
         if output:
             self.outputs.remove(output)
 
-    def init_from_xml(self, node_xml):
-        raise NotImplementedError
 
-
-class NodeOutputAnimation(NodeBase):
-    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_NodeOutputAnimation'
+class ATNodeOutputAnimation(AnimationTreeNodeBase):
+    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_ATNodeOutputAnimation'
     bl_label = 'Output Animation'
 
     def init(self, context):
@@ -56,16 +72,16 @@ class NodeOutputAnimation(NodeBase):
 
 
 # 0 inputs, 1 output
-class Node0x1(NodeBase):
-    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_Node0x1'
+class ATNode0x1(AnimationTreeNodeBase):
+    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_ATNode0x1'
 
     def init(self, context):
         self.create_output(NodeSocket.bl_idname, "output", "Out")
 
 
 # 1 input, 1 output
-class Node1x1(NodeBase):
-    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_Node1x1'
+class ATNode1x1(AnimationTreeNodeBase):
+    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_ATNode1x1'
 
     def init(self, context):
         self.create_output(NodeSocket.bl_idname, "output", "Out")
@@ -73,8 +89,8 @@ class Node1x1(NodeBase):
 
 
 # 2 inputs, 1 output
-class Node2x1(NodeBase):
-    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_Node2x1'
+class ATNode2x1(AnimationTreeNodeBase):
+    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_ATNode2x1'
 
     def init(self, context):
         self.create_output(NodeSocket.bl_idname, "output", "Out")
@@ -83,8 +99,8 @@ class Node2x1(NodeBase):
 
 
 # N inputs, 1 output
-class NodeNx1(NodeBase):
-    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_NodeNx1'
+class ATNodeNx1(AnimationTreeNodeBase):
+    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_ATNodeNx1'
 
     def init(self, context):
         self.create_output(NodeSocket.bl_idname, "output", "Out")
@@ -93,35 +109,53 @@ class NodeNx1(NodeBase):
         input.link_limit = 63  # .mrf uses 6 bits to store the children count
 
 
-# IMPLEMENTED NODE CLASSES
+# ANIMATION TREE NODES
 
 
-class NodeStateMachine(Node0x1, bpy.types.NodeCustomGroup):
-    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_NodeStateMachine'
+class ATNodeStateMachine(ATNode0x1):
+    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_ATNodeStateMachine'
     bl_label = 'State Machine'
+
+    state_machine_tree: bpy.props.PointerProperty(name="State Machine", type=NetworkTree)
 
     def init_from_xml(self, node_xml: MoveNodeStateMachine):
         pass
 
+    def draw_buttons(self, context, layout):
+        if self.state_machine_tree:
+            layout.prop(self, "state_machine_tree")
+            layout.operator(SOLLUMZ_OT_MOVE_NETWORK_open_state_machine.bl_idname).state_machine_tree_name = self.state_machine_tree.name
 
-class NodeTail(Node0x1):
-    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_NodeTail'
+
+class ATNodeTail(ATNode0x1):
+    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_ATNodeTail'
     bl_label = 'Tail'
 
     def init_from_xml(self, node_xml: MoveNodeTail):
         pass
 
 
-class NodeInlinedStateMachine(Node0x1, bpy.types.NodeCustomGroup):
-    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_NodeInlinedStateMachine'
+class ATNodeInlinedStateMachine(ATNode0x1):
+    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_ATNodeInlinedStateMachine'
     bl_label = 'Inlined State Machine'
+
+    fallback_animation_tree: bpy.props.PointerProperty(name="Fallback Animation Tree", type=NetworkTree)
+    state_machine_tree: bpy.props.PointerProperty(name="State Machine", type=NetworkTree)
 
     def init_from_xml(self, node_xml: MoveNodeInlinedStateMachine):
         pass
 
+    def draw_buttons(self, context, layout):
+        if self.animation_tree:
+            layout.prop(self, "fallback_animation_tree")
+            layout.operator(SOLLUMZ_OT_MOVE_NETWORK_open_animation_tree.bl_idname).animation_tree_name = self.fallback_animation_tree.name
+        if self.state_machine_tree:
+            layout.prop(self, "state_machine_tree")
+            layout.operator(SOLLUMZ_OT_MOVE_NETWORK_open_state_machine.bl_idname).state_machine_tree_name = self.state_machine_tree.name
 
-class NodeBlend(Node2x1):
-    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_NodeBlend'
+
+class ATNodeBlend(ATNode2x1):
+    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_ATNodeBlend'
     bl_label = 'Blend'
 
     weight: bpy.props.PointerProperty(name='Weight', type=ParameterizedFloatProperty)
@@ -136,8 +170,8 @@ class NodeBlend(Node2x1):
         self.frame_filter.draw("Frame Filter", layout)
 
 
-class NodeAddSubtract(Node2x1):
-    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_NodeAddSubtract'
+class ATNodeAddSubtract(ATNode2x1):
+    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_ATNodeAddSubtract'
     bl_label = 'Add-Subtract'
 
     weight: bpy.props.PointerProperty(name='Weight', type=ParameterizedFloatProperty)
@@ -152,8 +186,8 @@ class NodeAddSubtract(Node2x1):
         self.frame_filter.draw("Frame Filter", layout)
 
 
-class NodeFilter(Node1x1):
-    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_NodeFilter'
+class ATNodeFilter(ATNode1x1):
+    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_ATNodeFilter'
     bl_label = 'Filter'
 
     frame_filter: bpy.props.PointerProperty(name='Frame Filter', type=ParameterizedAssetProperty)
@@ -165,8 +199,8 @@ class NodeFilter(Node1x1):
         self.frame_filter.draw("Frame Filter", layout)
 
 
-class NodeMirror(Node1x1):
-    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_NodeMirror'
+class ATNodeMirror(ATNode1x1):
+    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_ATNodeMirror'
     bl_label = 'Mirror'
 
     frame_filter: bpy.props.PointerProperty(name='Frame Filter', type=ParameterizedAssetProperty)
@@ -178,8 +212,8 @@ class NodeMirror(Node1x1):
         self.frame_filter.draw("Frame Filter", layout)
 
 
-class NodeFrame(Node0x1):
-    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_NodeFrame'
+class ATNodeFrame(ATNode0x1):
+    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_ATNodeFrame'
     bl_label = 'Frame'
 
     frame: bpy.props.StringProperty(name='Frame', default='')
@@ -191,24 +225,24 @@ class NodeFrame(Node0x1):
         layout.prop(self, "frame")
 
 
-class NodeIk(Node0x1):
-    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_NodeIk'
+class ATNodeIk(ATNode0x1):
+    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_ATNodeIk'
     bl_label = 'IK'
 
     def init_from_xml(self, node_xml: MoveNodeIk):
         pass
 
 
-class NodeBlendN(NodeNx1):
-    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_NodeBlendN'
+class ATNodeBlendN(ATNodeNx1):
+    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_ATNodeBlendN'
     bl_label = 'Blend N'
 
     def init_from_xml(self, node_xml: MoveNodeBlendN):
         pass
 
 
-class NodeClip(Node0x1):
-    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_NodeClip'
+class ATNodeClip(ATNode0x1):
+    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_ATNodeClip'
     bl_label = 'Clip'
 
     clip: bpy.props.PointerProperty(name='Clip', type=ParameterizedClipProperty)
@@ -233,8 +267,8 @@ class NodeClip(Node0x1):
         # self.unk_flag10
 
 
-class NodeExtrapolate(Node1x1):
-    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_NodeExtrapolate'
+class ATNodeExtrapolate(ATNode1x1):
+    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_ATNodeExtrapolate'
     bl_label = 'Extrapolate'
 
     damping: bpy.props.PointerProperty(name='Damping', type=ParameterizedFloatProperty)
@@ -246,8 +280,8 @@ class NodeExtrapolate(Node1x1):
         self.damping.draw("Damping", layout)
 
 
-class NodeExpression(Node1x1):
-    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_NodeExpression'
+class ATNodeExpression(ATNode1x1):
+    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_ATNodeExpression'
     bl_label = 'Expression'
 
     weight: bpy.props.PointerProperty(name='Weight', type=ParameterizedFloatProperty)
@@ -262,8 +296,8 @@ class NodeExpression(Node1x1):
         self.expression.draw("Expression", layout)
 
 
-class NodeCapture(Node1x1):
-    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_NodeCapture'
+class ATNodeCapture(ATNode1x1):
+    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_ATNodeCapture'
     bl_label = 'Capture'
 
     frame: bpy.props.StringProperty(name='Frame', default='')
@@ -275,8 +309,8 @@ class NodeCapture(Node1x1):
         layout.prop(self, "frame")
 
 
-class NodeProxy(Node0x1):
-    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_NodeProxy'
+class ATNodeProxy(ATNode0x1):
+    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_ATNodeProxy'
     bl_label = 'Proxy'
 
     node_parameter_name: bpy.props.StringProperty(name='Node Parameter', default='')
@@ -288,172 +322,189 @@ class NodeProxy(Node0x1):
         layout.prop(self, "node_parameter_name")
 
 
-class NodeAddN(NodeNx1):
-    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_NodeAddN'
+class ATNodeAddN(ATNodeNx1):
+    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_ATNodeAddN'
     bl_label = 'Add N'
 
     def init_from_xml(self, node_xml: MoveNodeAddN):
         pass
 
 
-class NodeIdentity(Node0x1):
-    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_NodeIdentity'
+class ATNodeIdentity(ATNode0x1):
+    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_ATNodeIdentity'
     bl_label = 'Identity'
 
     def init_from_xml(self, node_xml: MoveNodeIdentity):
         pass
 
 
-class NodeMerge(Node2x1):
-    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_NodeMerge'
+class ATNodeMerge(ATNode2x1):
+    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_ATNodeMerge'
     bl_label = 'Merge'
 
     def init_from_xml(self, node_xml: MoveNodeMerge):
         pass
 
 
-class NodePose(Node0x1):
-    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_NodePose'
+class ATNodePose(ATNode0x1):
+    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_ATNodePose'
     bl_label = 'Pose'
 
     def init_from_xml(self, node_xml: MoveNodePose):
         pass
 
 
-class NodeMergeN(NodeNx1):
-    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_NodeMergeN'
+class ATNodeMergeN(ATNodeNx1):
+    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_ATNodeMergeN'
     bl_label = 'Merge N'
 
     def init_from_xml(self, node_xml: MoveNodeMergeN):
         pass
 
 
-class NodeState(bpy.types.NodeCustomGroup):
-    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_NodeState'
+# TODO: is ATNodeState needed?
+class ATNodeState(ATNode0x1):
+    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_ATNodeState'
     bl_label = 'State'
 
-    def init(self, context):
-        self.node_tree = bpy.data.node_groups.new(self.name, NodeTree.bl_idname)
-        print(self.node_tree)
-        if hasattr(self.node_tree, 'is_hidden'):
-            self.node_tree.is_hidden = False
-        self.node_tree.nodes.new('NodeGroupInput')
-        self.node_tree.nodes.new('NodeGroupOutput')
+    def init_from_xml(self, node_xml: MoveNodeState):
+        pass
 
-    # Draw the node components
-    # def draw_buttons(self, context, layout):
-        #print("draw_buttons(...)")
-        #row=layout.row()
-        #row.prop(self, 'expressionText', text='Expression')
-        #row=layout.row()
-        #row.operator('node.node_dynamic_maths_expression_editwithin', text='Edit')
 
-class NodeInvalid(Node0x1):
-    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_NodeInvalid'
+class ATNodeInvalid(ATNode0x1):
+    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_ATNodeInvalid'
     bl_label = 'Invalid'
 
     def init_from_xml(self, node_xml: MoveNodeInvalid):
         pass
 
 
-class NodeJointLimit(Node1x1):
-    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_NodeJointLimit'
+class ATNodeJointLimit(ATNode1x1):
+    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_ATNodeJointLimit'
     bl_label = 'Joint Limit'
 
     def init_from_xml(self, node_xml: MoveNodeJointLimit):
         pass
 
 
-class NodeSubNetwork(Node0x1):
-    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_NodeSubNetwork'
+class ATNodeSubNetwork(ATNode0x1):
+    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_ATNodeSubNetwork'
     bl_label = 'Sub-Network'
 
     def init_from_xml(self, node_xml: MoveNodeSubNetwork):
         pass
 
 
-class SOLLUMZ_OT_MOVE_NETWORK_state_new_transition(SOLLUMZ_OT_base, bpy.types.Operator):
-    bl_idname = "sollumz.move_network_state_new_transition"
-    bl_label = "New Transition"
+class SOLLUMZ_OT_MOVE_NETWORK_open_animation_tree(SOLLUMZ_OT_base, bpy.types.Operator):
+    bl_idname = "sollumz.move_network_open_animation_tree"
+    bl_label = "Edit Animation Tree"
     bl_action = bl_label
 
-    node: bpy.props.StringProperty()
+    animation_tree_name: bpy.props.StringProperty()
 
     @classmethod
     def poll(cls, context):
         return (context.space_data.type == "NODE_EDITOR" and
-                context.space_data.tree_type == NodeTree.bl_idname and
+                context.space_data.tree_type == NetworkTree.bl_idname and
                 context.space_data.edit_tree is not None and
-                context.space_data.edit_tree.bl_idname == NodeTree.bl_idname)
+                context.space_data.edit_tree.bl_idname == NetworkTree.bl_idname)
 
     def run(self, context):
-        tree = context.space_data.edit_tree
-        node = tree.nodes[self.node]
-        # node.add_transition(tree)
+        space = context.space_data
+        tree = bpy.data.node_groups[self.animation_tree_name]
+        if tree:
+            space.path.append(tree)
 
 
-class NodeState_Start(NodeBase):
-    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_NodeState_Start'
-    bl_label = 'State (Start)'
+class SOLLUMZ_OT_MOVE_NETWORK_open_state_machine(SOLLUMZ_OT_base, bpy.types.Operator):
+    bl_idname = "sollumz.move_network_open_state_machine"
+    bl_label = "Edit State Machine"
+    bl_action = bl_label
+
+    state_machine_tree_name: bpy.props.StringProperty()
+
+    @classmethod
+    def poll(cls, context):
+        return (context.space_data.type == "NODE_EDITOR" and
+                context.space_data.tree_type == NetworkTree.bl_idname and
+                context.space_data.edit_tree is not None and
+                context.space_data.edit_tree.bl_idname == NetworkTree.bl_idname)
+
+    def run(self, context):
+        space = context.space_data
+        tree = bpy.data.node_groups[self.state_machine_tree_name]
+        if tree:
+            space.path.append(tree)
+
+# STATE MACHINE TRANSITION GRAPH NODES
+
+
+class SMNodeStart(StateMachineNodeBase):
+    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_SMNodeStart'
+    bl_label = 'Start'
+
+    start_state: bpy.props.StringProperty(name="Start State", default="")
 
     def init(self, context):
-        self.create_output(NodeSocket.bl_idname, "start", "Start")
+        self.hide = True
+
+    def set_start_state(self, state):
+        self.start_state = state.name
 
 
-class NodeState_New(NodeBase):
-    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_NodeState_New'
-    bl_label = 'State (New)'
+class SMNodeState(StateMachineNodeBase):
+    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_SMNodeState'
+    bl_label = 'State'
 
-    transitions: bpy.props.CollectionProperty(type=NodeStateTransitionProperties)
+    animation_tree: bpy.props.PointerProperty(name="Animation Tree", type=NetworkTree)
+    state_machine_tree: bpy.props.PointerProperty(name="State Machine", type=NetworkTree)
+    transitions: bpy.props.CollectionProperty(name="Transitions", type=SMTransitionProperties)
 
     def init(self, context):
         pass
-        # input = self.create_input(NodeSocketTransitionTarget.bl_idname, "input", "In")
-        # input.is_multi_input = True
-        # input.link_limit = 255  # .mrf uses 8 bits to store the state count
 
     def draw_buttons(self, context, layout):
-        layout.operator(SOLLUMZ_OT_MOVE_NETWORK_state_new_transition.bl_idname).node = self.name
+        if self.animation_tree:
+            layout.prop(self, "animation_tree")
+            layout.operator(SOLLUMZ_OT_MOVE_NETWORK_open_animation_tree.bl_idname).animation_tree_name = self.animation_tree.name
+        if self.state_machine_tree:
+            layout.prop(self, "state_machine_tree")
+            layout.operator(SOLLUMZ_OT_MOVE_NETWORK_open_state_machine.bl_idname).state_machine_tree_name = self.state_machine_tree.name
 
     def add_transition(self, target_state):
         t = self.transitions.add()
         t.target_state = target_state.name
-        # i = len(self.outputs)
-        # transition_socket_name = "transition%d" % i
-        # self.create_output(NodeSocketTransitionSource.bl_idname, transition_socket_name, "Transition #%d" % i)
-        # if target_state is not None:
-        #     tree.links.new(self.outputs[transition_socket_name], target_state.inputs["input"])
 
 
 classes = [
-    NodeOutputAnimation,
-    NodeStateMachine,
-    NodeTail,
-    NodeInlinedStateMachine,
-    NodeBlend,
-    NodeAddSubtract,
-    NodeFilter,
-    NodeMirror,
-    NodeFrame,
-    NodeIk,
-    NodeBlendN,
-    NodeClip,
-    NodeExtrapolate,
-    NodeExpression,
-    NodeCapture,
-    NodeProxy,
-    NodeAddN,
-    NodeIdentity,
-    NodeMerge,
-    NodePose,
-    NodeMergeN,
-    NodeState,
-    NodeInvalid,
-    NodeJointLimit,
-    NodeSubNetwork,
+    ATNodeOutputAnimation,
+    ATNodeStateMachine,
+    ATNodeTail,
+    ATNodeInlinedStateMachine,
+    ATNodeBlend,
+    ATNodeAddSubtract,
+    ATNodeFilter,
+    ATNodeMirror,
+    ATNodeFrame,
+    ATNodeIk,
+    ATNodeBlendN,
+    ATNodeClip,
+    ATNodeExtrapolate,
+    ATNodeExpression,
+    ATNodeCapture,
+    ATNodeProxy,
+    ATNodeAddN,
+    ATNodeIdentity,
+    ATNodeMerge,
+    ATNodePose,
+    ATNodeMergeN,
+    ATNodeState,
+    ATNodeInvalid,
+    ATNodeJointLimit,
+    ATNodeSubNetwork,
 
-    NodeState_Start,
-    NodeState_New,
+    SMNodeStart,
+    SMNodeState,
 ]
 
 # import traceback

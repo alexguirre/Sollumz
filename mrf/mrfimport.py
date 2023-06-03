@@ -1,12 +1,8 @@
-import os
-
 import bpy
 from ..cwxml.mrf import *
-from ..tools.blenderhelper import create_empty_object
-from ..sollumz_properties import SollumType
-from .ui.node_tree import NodeTree
-from .ui.node_socket import NodeSocket
+from .ui.node_tree import NetworkTree
 from .ui.nodes import *
+import os
 
 
 def import_mrf(filepath: str):
@@ -16,211 +12,172 @@ def import_mrf(filepath: str):
 
 
 def move_network_to_obj(mrf_xml: MoveNetwork, name: str):
-    # move_network_obj = create_empty_object(SollumType.MOVE_NETWORK, name)
-    #
-    # set_move_network_properties(mrf_xml, move_network_obj)
-
-    build_node_tree(mrf_xml, name)
+    # TODO: should we create a blender object for the MoVE network?
+    build_move_network(mrf_xml, name)
 
 
-# def set_move_network_properties(mrf_xml: MoveNetwork, obj: bpy.types.Object):
-#     obj.move_network_properties.test = 1234
-#
-#     for trigger in mrf_xml.triggers:
-#         trigger_props = obj.move_network_properties.triggers.add()
-#         trigger_props.name = trigger.name
-#         trigger_props.bit_position = trigger.bit_position
-#     for flag in mrf_xml.flags:
-#         flag_props = obj.move_network_properties.flags.add()
-#         flag_props.name = flag.name
-#         flag_props.bit_position = flag.bit_position
+def build_move_network(mrf_xml: MoveNetwork, name: str):
+    # TODO: can we skip this root tree and just directly use the animation tree for root states
+    # and state graph for root state machines?
+    root_tree: NetworkTree = bpy.data.node_groups.new(name, NetworkTree.bl_idname)
+    root_tree.network_tree_type = "STATE_MACHINE"
+    root_node = root_tree.nodes.new(SMNodeStart.bl_idname)
+    root_state_node = create_state_machine_graph_node(root_tree, mrf_xml.root_state)
+    root_node.set_start_state(root_state_node)
+    return root_tree
 
 
-def build_node_tree(mrf_xml: MoveNetwork, name: str):
-    tree: NodeTree = bpy.data.node_groups.new(name, NodeTree.bl_idname)
-    build_state_nodes(tree, mrf_xml.root_state)
-    layout_node_tree(tree)
-    return tree
+def create_state_machine_graph_tree(parent_name, state_machine):
+    state_machine_graph_tree = bpy.data.node_groups.new(parent_name + "." + state_machine.name, NetworkTree.bl_idname)
+    state_machine_graph_tree.network_tree_type = "STATE_MACHINE"
+
+    states_nodes = {}
+    states_by_name = {}
+    for state in state_machine.states:
+        states_nodes[state] = create_state_machine_graph_node(state_machine_graph_tree, state)
+        states_nodes[state].name = state.name
+        states_nodes[state].label = state.name
+        states_by_name[state.name] = state
+
+    for state, node in states_nodes.items():
+        if state.transitions is None:
+            continue
+        for t in state.transitions:
+            target_node = states_nodes[states_by_name[t.target_state]]
+            node.add_transition(target_node)
+    initial_node = states_nodes[states_by_name[state_machine.initial_state]]
+    start_node = state_machine_graph_tree.nodes.new(SMNodeStart.bl_idname)
+    start_node.name = "start"
+    start_node.label = "Start"
+    start_node.set_start_state(initial_node)
+
+    layout_state_machine_graph_tree(state_machine_graph_tree)
+
+    return state_machine_graph_tree
 
 
-def build_state_nodes(tree: NodeTree, state, parent_frame=None):
-    def _build_state_nodes(s: MoveNodeState):
-        state_frame = tree.nodes.new('NodeFrame')
-        state_frame.name = s.name
-        state_frame.label = s.name
-        if parent_frame is not None:
-            state_frame.parent = parent_frame
-        final_output = tree.nodes.new(NodeOutputAnimation.bl_idname)
-        final_output.parent = state_frame
-        root_node = create_anim_node_tree(tree, s.initial_node, parent_frame=state_frame)
-        tree.links.new(root_node.outputs["output"], final_output.inputs["input"])
-        return state_frame
+def create_state_machine_graph_node(sm_tree: NetworkTree, mn: MoveNodeBase):
+    if sm_tree.network_tree_type != "STATE_MACHINE":
+        raise Exception("Expected a state machine graph tree, found '%s'" % sm_tree.network_tree_type)
 
-    def _build_state_machine_nodes(sm: MoveNodeStateMachine):
-        state_machine_frame = tree.nodes.new('NodeFrame')
-        state_machine_frame.name = sm.name
-        state_machine_frame.label = sm.name
-        if parent_frame is not None:
-            state_machine_frame.parent = parent_frame
-        for child in sm.states:
-            build_state_nodes(tree, child, parent_frame=state_machine_frame)
+    state_node = None
+    if mn.type == MoveNodeState.type:
+        state_node = sm_tree.nodes.new(SMNodeState.bl_idname)
+        state_node.name = mn.name
+        state_node.label = "%s (State)" % mn.name
 
-        states_nodes = {}
-        states_by_name = {}
-        for state in sm.states:
-            states_nodes[state] = tree.nodes.new(NodeState_New.bl_idname)
-            states_nodes[state].name = "State.%s" % state.name
-            states_nodes[state].label = state.name
-            states_by_name[state.name] = state
-        for state, node in states_nodes.items():
-            if state.transitions is None:
-                continue
-            for t in state.transitions:
-                target_node = states_nodes[states_by_name[t.target_state]]
-                node.add_transition(target_node)
-        initial_node = states_nodes[states_by_name[sm.initial_state]]
-        start_node = tree.nodes.new(NodeState_New.bl_idname)
-        start_node.name = "%s.Start" % sm.name
-        start_node.label = "Start '%s'" % sm.name
-        start_node.hide = True
-        start_node.add_transition(initial_node)
-        # tree.links.new(start_node.outputs["start"], initial_node.inputs["input"])
-        return state_machine_frame
+        state_node.animation_tree = create_animation_tree(sm_tree.name, mn.name, mn.initial_node)
 
-    def _build_inlined_state_machine_nodes(sm: MoveNodeStateMachine):
-        state_machine_frame = tree.nodes.new('NodeFrame')
-        state_machine_frame.name = sm.name
-        state_machine_frame.label = sm.name
-        if parent_frame is not None:
-            state_machine_frame.parent = parent_frame
-        for child in sm.states:
-            build_state_nodes(tree, child, parent_frame=state_machine_frame)
+    elif mn.type == MoveNodeStateMachine.type:
+        state_node = sm_tree.nodes.new(SMNodeState.bl_idname)
+        state_node.name = mn.name
+        state_node.label = "%s (State Machine)" % mn.name
 
-        state_machine_fallback_frame = tree.nodes.new('NodeFrame')
-        state_machine_fallback_frame.name = "%s.Fallback" % sm.name
-        state_machine_fallback_frame.label = "%s (Fallback)" % sm.name
-        if parent_frame is not None:
-            state_machine_fallback_frame.parent = parent_frame
-        fallback_final_output = tree.nodes.new(NodeOutputAnimation.bl_idname)
-        fallback_final_output.parent = state_machine_fallback_frame
-        root_node = create_anim_node_tree(tree, sm.fallback_node, parent_frame=state_machine_fallback_frame)
-        tree.links.new(root_node.outputs["output"], fallback_final_output.inputs["input"])
-        return state_machine_frame
+        state_node.state_machine_tree = create_state_machine_graph_tree(sm_tree.name, mn)
 
-    if state.type == MoveNodeState.type:
-        return _build_state_nodes(state)
-    elif state.type == MoveNodeStateMachine.type:
-        return _build_state_machine_nodes(state)
-    elif state.type == MoveNodeInlinedStateMachine.type:
-        return _build_inlined_state_machine_nodes(state)
+    elif mn.type == MoveNodeInlinedStateMachine.type:
+        state_node = sm_tree.nodes.new(SMNodeState.bl_idname)
+        state_node.name = mn.name
+        state_node.label = "%s (Inlined State Machine)" % mn.name
+
+        state_node.state_machine_tree = create_state_machine_graph_tree(sm_tree.name, mn)
+        state_node.animation_tree = create_animation_tree(sm_tree.name, mn.name + ".fallback", mn.fallback_node)
+
     else:
-        raise TypeError("Invalid state node type '%s'" % state.type)
+        raise TypeError("Invalid state node type '%s'" % mn.type)
+
+    return state_node
 
 
-_nodes_xml_type_to_ui_type = {
-    MoveNodeStateMachine.type: NodeStateMachine,
-    MoveNodeTail.type: NodeTail,
-    MoveNodeInlinedStateMachine.type: NodeInlinedStateMachine,
-    MoveNodeBlend.type: NodeBlend,
-    MoveNodeAddSubtract.type: NodeAddSubtract,
-    MoveNodeFilter.type: NodeFilter,
-    MoveNodeMirror.type: NodeMirror,
-    MoveNodeFrame.type: NodeFrame,
-    MoveNodeIk.type: NodeIk,
-    MoveNodeBlendN.type: NodeBlendN,
-    MoveNodeClip.type: NodeClip,
-    MoveNodeExtrapolate.type: NodeExtrapolate,
-    MoveNodeExpression.type: NodeExpression,
-    MoveNodeCapture.type: NodeCapture,
-    MoveNodeProxy.type: NodeProxy,
-    MoveNodeAddN.type: NodeAddN,
-    MoveNodeIdentity.type: NodeIdentity,
-    MoveNodeMerge.type: NodeMerge,
-    MoveNodePose.type: NodePose,
-    MoveNodeMergeN.type: NodeMergeN,
-    MoveNodeState.type: NodeState,
-    MoveNodeInvalid.type: NodeInvalid,
-    MoveNodeJointLimit.type: NodeJointLimit,
-    MoveNodeSubNetwork.type: NodeSubNetwork
+_nodes_xml_type_to_animation_tree_type = {
+    MoveNodeStateMachine.type: ATNodeStateMachine,
+    MoveNodeTail.type: ATNodeTail,
+    MoveNodeInlinedStateMachine.type: ATNodeInlinedStateMachine,
+    MoveNodeBlend.type: ATNodeBlend,
+    MoveNodeAddSubtract.type: ATNodeAddSubtract,
+    MoveNodeFilter.type: ATNodeFilter,
+    MoveNodeMirror.type: ATNodeMirror,
+    MoveNodeFrame.type: ATNodeFrame,
+    MoveNodeIk.type: ATNodeIk,
+    MoveNodeBlendN.type: ATNodeBlendN,
+    MoveNodeClip.type: ATNodeClip,
+    MoveNodeExtrapolate.type: ATNodeExtrapolate,
+    MoveNodeExpression.type: ATNodeExpression,
+    MoveNodeCapture.type: ATNodeCapture,
+    MoveNodeProxy.type: ATNodeProxy,
+    MoveNodeAddN.type: ATNodeAddN,
+    MoveNodeIdentity.type: ATNodeIdentity,
+    MoveNodeMerge.type: ATNodeMerge,
+    MoveNodePose.type: ATNodePose,
+    MoveNodeMergeN.type: ATNodeMergeN,
+    MoveNodeState.type: ATNodeState,
+    MoveNodeInvalid.type: ATNodeInvalid,
+    MoveNodeJointLimit.type: ATNodeJointLimit,
+    MoveNodeSubNetwork.type: ATNodeSubNetwork
 }
 
 
-def create_anim_node_tree(tree: NodeTree, mn: MoveNodeBase, parent_frame=None):
+def create_animation_tree(parent_name, name, mn: MoveNodeBase):
+    animation_tree = bpy.data.node_groups.new(parent_name + "." + name, NetworkTree.bl_idname)
+    animation_tree.network_tree_type = "ANIMATION_TREE"
+    final_output = animation_tree.nodes.new(ATNodeOutputAnimation.bl_idname)
+    root_node = create_animation_tree_nodes(animation_tree, mn)
+    animation_tree.links.new(root_node.outputs["output"], final_output.inputs["input"])
+    layout_animation_tree(animation_tree)
+    return animation_tree
+
+
+def create_animation_tree_nodes(animation_tree: NetworkTree, mn: MoveNodeBase):
+    if animation_tree.network_tree_type != "ANIMATION_TREE":
+        raise Exception("Expected an animation tree tree, found '%s'" % animation_tree.network_tree_type)
+
     n = None
-    if mn.type in _nodes_xml_type_to_ui_type:
-        n = tree.nodes.new(_nodes_xml_type_to_ui_type[mn.type].bl_idname)
+    if mn.type in _nodes_xml_type_to_animation_tree_type:
+        n = animation_tree.nodes.new(_nodes_xml_type_to_animation_tree_type[mn.type].bl_idname)
         n.init_from_xml(mn)
     else:
         raise TypeError("Invalid animation node type '%s'" % mn.type)
 
     # create children and connect them
     if isinstance(mn, MoveNodeWithChildBase):
-        n_child = create_anim_node_tree(tree, mn.child, parent_frame)
-        tree.links.new(n_child.outputs["output"], n.inputs["input"])
+        n_child = create_animation_tree_nodes(animation_tree, mn.child)
+        animation_tree.links.new(n_child.outputs["output"], n.inputs["input"])
     elif isinstance(mn, MoveNodePairBase):
-        n_child0 = create_anim_node_tree(tree, mn.child0, parent_frame)
-        n_child1 = create_anim_node_tree(tree, mn.child1, parent_frame)
-        tree.links.new(n_child0.outputs["output"], n.inputs["input0"])
-        tree.links.new(n_child1.outputs["output"], n.inputs["input1"])
+        n_child0 = create_animation_tree_nodes(animation_tree, mn.child0)
+        n_child1 = create_animation_tree_nodes(animation_tree, mn.child1)
+        animation_tree.links.new(n_child0.outputs["output"], n.inputs["input0"])
+        animation_tree.links.new(n_child1.outputs["output"], n.inputs["input1"])
     elif isinstance(mn, MoveNodeNBase):
         for child in mn.children:
-            n_child = create_anim_node_tree(tree, child.node, parent_frame)
-            tree.links.new(n_child.outputs["output"], n.inputs["inputs"])
+            n_child = create_animation_tree_nodes(animation_tree, child.node)
+            animation_tree.links.new(n_child.outputs["output"], n.inputs["inputs"])
 
-    if mn.type == MoveNodeStateMachine.type or mn.type == MoveNodeInlinedStateMachine.type:
-        frame = build_state_nodes(tree, mn, parent_frame)
-        if parent_frame is not None:
-            frame.parent = parent_frame
+    if mn.type == MoveNodeStateMachine.type:
+        n.state_machine_tree = create_state_machine_graph_tree(animation_tree.name, mn)
+    elif mn.type == MoveNodeInlinedStateMachine.type:
+        n.state_machine_tree = create_state_machine_graph_tree(animation_tree.name, mn)
+        n.fallback_animation_tree = create_animation_tree(animation_tree.name, mn.name + ".fallback", mn.fallback_node)
+    elif mn.type == MoveNodeState.type:
+        raise "Can states appear directly in animation trees?"
 
     n.name = mn.name
     n.label = "%s (%s)" % (mn.name, n.bl_label)
-    if parent_frame is not None:
-        n.parent = parent_frame
     return n
 
 
-def layout_node_tree(node_tree):
-    frames = []
+def layout_state_machine_graph_tree(node_tree):
+    pass
+
+
+def layout_animation_tree(node_tree):
     for n in node_tree.nodes:
-        if isinstance(n, bpy.types.NodeFrame):
-            frames.append(n)
-            continue
-
-        if isinstance(n, NodeState_New) or isinstance(n, NodeState_Start):
-            continue
-
         if len(n.outputs) != 0:
             continue
 
-        layout_node(n)
-
-    parent_frames = {}
-    for f in frames:
-        if f.parent is None:
-            continue
-        if f.parent in parent_frames:
-            parent_frames[f.parent].append(f)
-        else:
-            parent_frames[f.parent] = [f]
-
-    gap_between_frames_x = 650
-    gap_between_frames_y = 450
-    frame_y = 0
-    for parent, frames in parent_frames.items():
-        frame_x = 0
-        for f in frames:
-            # only position innermost frames, Blender will resize/move the parent frames automatically
-            # if f in parent_frames:
-            #     continue
-            f.location.x = frame_x
-            f.location.y = frame_y
-            # blender does not update node dimensions until the tree is drawn on screen :(
-            # print(f.height, f.dimensions)
-            frame_x += gap_between_frames_x
-        frame_y -= gap_between_frames_y
+        layout_animation_tree_node(n)
 
 
-def layout_node(node):
+def layout_animation_tree_node(node):
     # based on:
     # https://github.com/abego/treelayout/blob/master/org.abego.treelayout/src/main/java/org/abego/treelayout/TreeLayout.java#L593
     # BSD 3-Clause License

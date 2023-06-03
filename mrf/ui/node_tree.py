@@ -4,30 +4,32 @@ import mathutils
 import gpu
 from gpu_extras.batch import batch_for_shader
 
+NetworkTreeTypes = [
+    ("ANIMATION_TREE", "Animation Tree", "Animation tree", 1),
+    ("STATE_MACHINE", "State Machine", "State machine transition graph", 2),
+]
 
-# NodeTree code based on: https://github.com/atticus-lv/simple_node_tree
-class NodeTree(bpy.types.NodeTree):
-    bl_idname = "SOLLUMZ_NT_MOVE_NETWORK_NodeTree"
+
+class NetworkTree(bpy.types.NodeTree):
+    bl_idname = "SOLLUMZ_NT_MOVE_NETWORK_NetworkTree"
     bl_label = "MoVE Network Editor"
     bl_icon = "ONIONSKIN_ON"
 
-    test1: bpy.props.StringProperty(name="Test1")
-    test2: bpy.props.StringProperty(name="Test2")
-    test3: bpy.props.IntProperty(name="Test3")
+    network_tree_type: bpy.props.EnumProperty(name="Type", items=NetworkTreeTypes)
 
 
-class NodeTreePropertiesPanel(bpy.types.Panel):
+class NetworkTreePropertiesPanel(bpy.types.Panel):
     bl_label = "Properties"
-    bl_idname = "SOLLUMZ_PT_MOVE_NETWORK_NodeTreePropertiesPanel"
+    bl_idname = "SOLLUMZ_PT_MOVE_NETWORK_NetworkTreePropertiesPanel"
     bl_category = "Network"
     bl_space_type = "NODE_EDITOR"
     bl_region_type = "UI"
 
     @classmethod
     def poll(cls, context):
-        return (context.space_data.tree_type == NodeTree.bl_idname and
+        return (context.space_data.tree_type == NetworkTree.bl_idname and
                 context.space_data.edit_tree is not None and
-                context.space_data.edit_tree.bl_idname == NodeTree.bl_idname)
+                context.space_data.edit_tree.bl_idname == NetworkTree.bl_idname)
 
     def draw(self, context):
         node_tree = context.space_data.edit_tree
@@ -182,12 +184,16 @@ def draw_node_editor_background():
 
     transition_arrows = []
     for node in node_tree.nodes:
-        if node.bl_idname != "SOLLUMZ_NT_MOVE_NETWORK_NodeState_New":
+        if node.bl_idname not in {"SOLLUMZ_NT_MOVE_NETWORK_SMNodeState", "SOLLUMZ_NT_MOVE_NETWORK_SMNodeStart"}:
             continue
 
-        for t in node.transitions:
-            target_node = node_tree.nodes[t.target_state]
-            transition_arrows.append(calc_transition_arrow(node, target_node))
+        if node.bl_idname == "SOLLUMZ_NT_MOVE_NETWORK_SMNodeStart":
+            start_node = node_tree.nodes[node.start_state]
+            transition_arrows.append(calc_transition_arrow(node, start_node))
+        else:
+            for t in node.transitions:
+                target_node = node_tree.nodes[t.target_state]
+                transition_arrows.append(calc_transition_arrow(node, target_node))
 
     fix_transition_arrows_overlaps(transition_arrows)
     draw_transition_arrows(transition_arrows)
