@@ -1,10 +1,12 @@
 import bpy
+import bl_ui
 import math
 import mathutils
 import gpu
 from gpu_extras.batch import batch_for_shader
 
 NetworkTreeTypes = [
+    ("ROOT", "Root", "Root tree", 0),
     ("ANIMATION_TREE", "Animation Tree", "Animation tree", 1),
     ("STATE_MACHINE", "State Machine", "State machine transition graph", 2),
 ]
@@ -16,11 +18,12 @@ class NetworkTree(bpy.types.NodeTree):
     bl_icon = "ONIONSKIN_ON"
 
     network_tree_type: bpy.props.EnumProperty(name="Type", items=NetworkTreeTypes)
+    network_root: bpy.props.PointerProperty(name="Network Root", type=bpy.types.NodeTree)
 
 
-class NetworkTreePropertiesPanel(bpy.types.Panel):
+class NetworkPropertiesPanel(bpy.types.Panel):
     bl_label = "Properties"
-    bl_idname = "SOLLUMZ_PT_MOVE_NETWORK_NetworkTreePropertiesPanel"
+    bl_idname = "SOLLUMZ_PT_MOVE_NETWORK_NetworkPropertiesPanel"
     bl_category = "Network"
     bl_space_type = "NODE_EDITOR"
     bl_region_type = "UI"
@@ -33,6 +36,55 @@ class NetworkTreePropertiesPanel(bpy.types.Panel):
 
     def draw(self, context):
         node_tree = context.space_data.edit_tree
+        if node_tree.network_root is not None:
+            node_tree = node_tree.network_root
+
+        self.layout.prop(node_tree, 'name')
+        for prop in node_tree.__annotations__:
+            self.layout.prop(node_tree, prop)
+
+
+class AnimationTreePropertiesPanel(bpy.types.Panel):
+    bl_label = "Properties"
+    bl_idname = "SOLLUMZ_PT_MOVE_NETWORK_AnimationTreePropertiesPanel"
+    bl_category = "Animation Tree"
+    bl_space_type = "NODE_EDITOR"
+    bl_region_type = "UI"
+
+    @classmethod
+    def poll(cls, context):
+        space = context.space_data
+        return (space.tree_type == NetworkTree.bl_idname and
+                space.edit_tree is not None and
+                space.edit_tree.bl_idname == NetworkTree.bl_idname and
+                space.edit_tree.network_tree_type == 'ANIMATION_TREE')
+
+    def draw(self, context):
+        node_tree = context.space_data.edit_tree
+
+        self.layout.prop(node_tree, 'name')
+        for prop in node_tree.__annotations__:
+            self.layout.prop(node_tree, prop)
+
+
+class StateMachinePropertiesPanel(bpy.types.Panel):
+    bl_label = "Properties"
+    bl_idname = "SOLLUMZ_PT_MOVE_NETWORK_StateMachinePropertiesPanel"
+    bl_category = "State Machine"
+    bl_space_type = "NODE_EDITOR"
+    bl_region_type = "UI"
+
+    @classmethod
+    def poll(cls, context):
+        space = context.space_data
+        return (space.tree_type == NetworkTree.bl_idname and
+                space.edit_tree is not None and
+                space.edit_tree.bl_idname == NetworkTree.bl_idname and
+                space.edit_tree.network_tree_type == 'STATE_MACHINE')
+
+    def draw(self, context):
+        node_tree = context.space_data.edit_tree
+
         self.layout.prop(node_tree, 'name')
         for prop in node_tree.__annotations__:
             self.layout.prop(node_tree, prop)
@@ -177,16 +229,16 @@ def fix_transition_arrows_overlaps(pos_pairs):
 
 
 def draw_node_editor_background():
+    space = bpy.context.space_data
+    if space.tree_type != NetworkTree.bl_idname:
+        return
 
-    node_tree = bpy.context.space_data.edit_tree
-    if node_tree is None:
+    node_tree = space.edit_tree
+    if node_tree is None or node_tree.network_tree_type not in {"ROOT", "STATE_MACHINE"}:
         return
 
     transition_arrows = []
     for node in node_tree.nodes:
-        if node.bl_idname not in {"SOLLUMZ_NT_MOVE_NETWORK_SMNodeState", "SOLLUMZ_NT_MOVE_NETWORK_SMNodeStart"}:
-            continue
-
         if node.bl_idname == "SOLLUMZ_NT_MOVE_NETWORK_SMNodeStart":
             start_node = node_tree.nodes[node.start_state]
             transition_arrows.append(calc_transition_arrow(node, start_node))
@@ -199,6 +251,76 @@ def draw_node_editor_background():
     draw_transition_arrows(transition_arrows)
 
 
+class NODE_HT_header(bl_ui.space_node.NODE_HT_header):
+    """
+    Overwrite the header of the node editor.
+    Mainly to limit the tree selection to root MoVE network trees.
+    """
+    bl_space_type = "NODE_EDITOR"
+
+    def draw_network_tree_header(self, context):
+        layout = self.layout
+
+        scene = context.scene
+        snode = context.space_data
+        overlay = snode.overlay
+        tool_settings = context.tool_settings
+
+        layout.template_header()
+
+        # Custom node tree is edited as independent ID block
+        bl_ui.space_node.NODE_MT_editor_menus.draw_collapsible(context, layout)
+
+        layout.separator_spacer()
+
+        layout.template_ID(scene, "move_network_tree", new="node.new_node_tree")
+
+        # Put pin next to ID block
+        layout.prop(snode, "pin", text="", emboss=False)
+
+        layout.separator_spacer()
+
+        layout.operator("node.tree_path_parent", text="", icon='FILE_PARENT')
+
+        # Snap
+        row = layout.row(align=True)
+        row.prop(tool_settings, "use_snap_node", text="")
+        row.prop(tool_settings, "snap_node_element", icon_only=True)
+        if tool_settings.snap_node_element != 'GRID':
+            row.prop(tool_settings, "snap_target", text="")
+
+        # Overlay toggle & popover
+        row = layout.row(align=True)
+        row.prop(overlay, "show_overlays", icon='OVERLAY', text="")
+        sub = row.row(align=True)
+        sub.active = overlay.show_overlays
+        sub.popover(panel="NODE_PT_overlay", text="")
+
+    def draw(self, context):
+        snode = context.space_data
+        if snode.tree_type == NetworkTree.bl_idname:
+            self.draw_network_tree_header(context)
+        else:
+            super(NODE_HT_header, self).draw(context)
+
+
+def move_network_tree_poll(self, node_tree):
+    return node_tree.network_tree_type == "ROOT"
+
+
+def move_network_tree_update(self, context):
+    context.space_data.node_tree = self.move_network_tree
+
+
 def register():
+    # TODO: probably not ideal to store current move_network_tree in Scene, but cannot be stored in SpaceNodeEditor
+    #  because it does not inherit from ID and we cannot add a PointerProperty to it
+    bpy.types.Scene.move_network_tree = bpy.props.PointerProperty(
+        type=NetworkTree,
+        poll=move_network_tree_poll,
+        update=move_network_tree_update
+    )
+
+    bpy.utils.register_class(NODE_HT_header)
     # TODO: unregister draw_handler
     bpy.types.SpaceNodeEditor.draw_handler_add(draw_node_editor_background, (), 'WINDOW', 'POST_VIEW')

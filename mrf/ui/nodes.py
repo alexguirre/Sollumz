@@ -33,11 +33,11 @@ class AnimationTreeNodeBase(bpy.types.Node):
     def init_from_xml(self, node_xml):
         raise NotImplementedError
 
-    def create_input(self, socket_type, socket_name, socket_label):
+    def create_input(self, socket_name, socket_label):
         if self.inputs.get(socket_name):
             return None
 
-        input = self.inputs.new(socket_type, socket_name)
+        input = self.inputs.new(NodeSocket.bl_idname, socket_name)
         input.text = socket_label
         return input
 
@@ -46,11 +46,11 @@ class AnimationTreeNodeBase(bpy.types.Node):
         if input:
             self.inputs.remove(input)
 
-    def create_output(self, socket_type, socket_name, socket_label):
+    def create_output(self, socket_name, socket_label):
         if self.outputs.get(socket_name):
             return None
 
-        output = self.outputs.new(socket_type, socket_name)
+        output = self.outputs.new(NodeSocket.bl_idname, socket_name)
         output.text = socket_label
         return input
 
@@ -65,7 +65,7 @@ class ATNodeOutputAnimation(AnimationTreeNodeBase):
     bl_label = 'Output Animation'
 
     def init(self, context):
-        self.create_input(NodeSocket.bl_idname, "input", "Result")
+        self.create_input("input", "Result")
 
     def init_from_xml(self, node_xml):
         raise Exception("NodeOutputAnimation cannot be initialized from XML")
@@ -76,7 +76,7 @@ class ATNode0x1(AnimationTreeNodeBase):
     bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_ATNode0x1'
 
     def init(self, context):
-        self.create_output(NodeSocket.bl_idname, "output", "Out")
+        self.create_output("output", "Out")
 
 
 # 1 input, 1 output
@@ -84,8 +84,8 @@ class ATNode1x1(AnimationTreeNodeBase):
     bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_ATNode1x1'
 
     def init(self, context):
-        self.create_output(NodeSocket.bl_idname, "output", "Out")
-        self.create_input(NodeSocket.bl_idname, "input", "In")
+        self.create_output("output", "Out")
+        self.create_input("input", "In")
 
 
 # 2 inputs, 1 output
@@ -93,9 +93,9 @@ class ATNode2x1(AnimationTreeNodeBase):
     bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_ATNode2x1'
 
     def init(self, context):
-        self.create_output(NodeSocket.bl_idname, "output", "Out")
-        self.create_input(NodeSocket.bl_idname, "input0", "A")
-        self.create_input(NodeSocket.bl_idname, "input1", "B")
+        self.create_output("output", "Out")
+        self.create_input("input0", "A")
+        self.create_input("input1", "B")
 
 
 # N inputs, 1 output
@@ -103,8 +103,8 @@ class ATNodeNx1(AnimationTreeNodeBase):
     bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_ATNodeNx1'
 
     def init(self, context):
-        self.create_output(NodeSocket.bl_idname, "output", "Out")
-        input = self.create_input(NodeSocket.bl_idname, "inputs", "In")
+        self.create_output("output", "Out")
+        input = self.create_input("inputs", "In")
         # input.is_multi_input = True
         input.link_limit = 63  # .mrf uses 6 bits to store the children count
 
@@ -123,7 +123,6 @@ class ATNodeStateMachine(ATNode0x1):
 
     def draw_buttons(self, context, layout):
         if self.state_machine_tree:
-            layout.prop(self, "state_machine_tree")
             layout.operator(SOLLUMZ_OT_MOVE_NETWORK_open_state_machine.bl_idname).state_machine_tree_name = self.state_machine_tree.name
 
 
@@ -146,11 +145,9 @@ class ATNodeInlinedStateMachine(ATNode0x1):
         pass
 
     def draw_buttons(self, context, layout):
-        if self.animation_tree:
-            layout.prop(self, "fallback_animation_tree")
+        if self.fallback_animation_tree:
             layout.operator(SOLLUMZ_OT_MOVE_NETWORK_open_animation_tree.bl_idname).animation_tree_name = self.fallback_animation_tree.name
         if self.state_machine_tree:
-            layout.prop(self, "state_machine_tree")
             layout.operator(SOLLUMZ_OT_MOVE_NETWORK_open_state_machine.bl_idname).state_machine_tree_name = self.state_machine_tree.name
 
 
@@ -362,15 +359,6 @@ class ATNodeMergeN(ATNodeNx1):
         pass
 
 
-# TODO: is ATNodeState needed?
-class ATNodeState(ATNode0x1):
-    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_ATNodeState'
-    bl_label = 'State'
-
-    def init_from_xml(self, node_xml: MoveNodeState):
-        pass
-
-
 class ATNodeInvalid(ATNode0x1):
     bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_ATNodeInvalid'
     bl_label = 'Invalid'
@@ -452,28 +440,45 @@ class SMNodeStart(StateMachineNodeBase):
         self.start_state = state.name
 
 
-class SMNodeState(StateMachineNodeBase):
+class SMNodeStateBase(StateMachineNodeBase):
+    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_SMNodeStateBase'
+
+    transitions: bpy.props.CollectionProperty(name="Transitions", type=SMTransitionProperties)
+
+    def init(self, context):
+        pass
+
+    def add_transition(self, target_state):
+        t = self.transitions.add()
+        t.target_state = target_state.name
+
+
+class SMNodeState(SMNodeStateBase):
     bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_SMNodeState'
     bl_label = 'State'
 
     animation_tree: bpy.props.PointerProperty(name="Animation Tree", type=NetworkTree)
-    state_machine_tree: bpy.props.PointerProperty(name="State Machine", type=NetworkTree)
-    transitions: bpy.props.CollectionProperty(name="Transitions", type=SMTransitionProperties)
 
     def init(self, context):
         pass
 
     def draw_buttons(self, context, layout):
         if self.animation_tree:
-            layout.prop(self, "animation_tree")
             layout.operator(SOLLUMZ_OT_MOVE_NETWORK_open_animation_tree.bl_idname).animation_tree_name = self.animation_tree.name
-        if self.state_machine_tree:
-            layout.prop(self, "state_machine_tree")
-            layout.operator(SOLLUMZ_OT_MOVE_NETWORK_open_state_machine.bl_idname).state_machine_tree_name = self.state_machine_tree.name
 
-    def add_transition(self, target_state):
-        t = self.transitions.add()
-        t.target_state = target_state.name
+
+class SMNodeStateMachine(SMNodeStateBase):
+    bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_SMNodeStateMachine'
+    bl_label = 'State Machine'
+
+    state_machine_tree: bpy.props.PointerProperty(name="State Machine", type=NetworkTree)
+
+    def init(self, context):
+        pass
+
+    def draw_buttons(self, context, layout):
+        if self.state_machine_tree:
+            layout.operator(SOLLUMZ_OT_MOVE_NETWORK_open_state_machine.bl_idname).state_machine_tree_name = self.state_machine_tree.name
 
 
 classes = [
@@ -498,13 +503,13 @@ classes = [
     ATNodeMerge,
     ATNodePose,
     ATNodeMergeN,
-    ATNodeState,
     ATNodeInvalid,
     ATNodeJointLimit,
     ATNodeSubNetwork,
 
     SMNodeStart,
     SMNodeState,
+    SMNodeStateMachine,
 ]
 
 # import traceback

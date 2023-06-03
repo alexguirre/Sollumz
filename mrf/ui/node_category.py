@@ -21,7 +21,7 @@ class SMNodeCategory(nodeitems_utils.NodeCategory):
 
 
 node_categories = [
-    ATNodeCategory("INPUT", "Input", items=[
+    ATNodeCategory("AT_INPUT", "Input", items=[
         nodeitems_utils.NodeItem(ATNodeTail.bl_idname),
         nodeitems_utils.NodeItem(ATNodeFrame.bl_idname),
         nodeitems_utils.NodeItem(ATNodeIk.bl_idname),
@@ -32,10 +32,10 @@ node_categories = [
         nodeitems_utils.NodeItem(ATNodeInvalid.bl_idname),
         nodeitems_utils.NodeItem(ATNodeSubNetwork.bl_idname),
     ]),
-    ATNodeCategory("OUTPUT", "Output", items=[
+    ATNodeCategory("AT_OUTPUT", "Output", items=[
         nodeitems_utils.NodeItem(ATNodeOutputAnimation.bl_idname),
     ]),
-    ATNodeCategory("COMBINE", "Combine", items=[
+    ATNodeCategory("AT_COMBINE", "Combine", items=[
         nodeitems_utils.NodeItem(ATNodeBlend.bl_idname),
         nodeitems_utils.NodeItem(ATNodeBlendN.bl_idname),
         nodeitems_utils.NodeItem(ATNodeAddSubtract.bl_idname),
@@ -43,7 +43,7 @@ node_categories = [
         nodeitems_utils.NodeItem(ATNodeMerge.bl_idname),
         nodeitems_utils.NodeItem(ATNodeMergeN.bl_idname),
     ]),
-    ATNodeCategory("MODIFY", "Modify", items=[
+    ATNodeCategory("AT_MODIFY", "Modify", items=[
         nodeitems_utils.NodeItem(ATNodeFilter.bl_idname),
         nodeitems_utils.NodeItem(ATNodeMirror.bl_idname),
         nodeitems_utils.NodeItem(ATNodeExtrapolate.bl_idname),
@@ -51,18 +51,22 @@ node_categories = [
         nodeitems_utils.NodeItem(ATNodeCapture.bl_idname),
         nodeitems_utils.NodeItem(ATNodeJointLimit.bl_idname),
     ]),
-    ATNodeCategory("STATE_MACHINE", "State Machine", items=[
+    ATNodeCategory("AT_STATE_MACHINE", "State Machine", items=[
         nodeitems_utils.NodeItem(ATNodeStateMachine.bl_idname),
         nodeitems_utils.NodeItem(ATNodeInlinedStateMachine.bl_idname),
-        nodeitems_utils.NodeItem(ATNodeState.bl_idname),
     ]),
-    ATNodeCategory("LAYOUT", "Layout", items=[
+    ATNodeCategory("AT_LAYOUT", "Layout", items=[
         nodeitems_utils.NodeItem('NodeFrame'),
         nodeitems_utils.NodeItem('NodeReroute'),
     ]),
-    SMNodeCategory("STATE_MACHINE_GRAPH", "State Machine", items=[
+
+    SMNodeCategory("SM_STATE_MACHINE", "State Machine", items=[
         nodeitems_utils.NodeItem(SMNodeStart.bl_idname),
         nodeitems_utils.NodeItem(SMNodeState.bl_idname),
+        nodeitems_utils.NodeItem(SMNodeStateMachine.bl_idname),
+    ]),
+    SMNodeCategory("SM_LAYOUT", "Layout", items=[
+        nodeitems_utils.NodeItem('NodeFrame'),
     ]),
 ]
 
