@@ -8,8 +8,9 @@ from .element import (
     Element,
     ElementTree,
     ElementProperty,
-    ListProperty,
+    ListPropertyRequired,
     TextProperty,
+    TextPropertyRequired,
     ValueProperty,
     get_str_type
 )
@@ -31,7 +32,7 @@ class MoveNetworkBit(ElementTree, AbstractClass):
 
     def __init__(self):
         super().__init__()
-        self.name = TextProperty("Name", "")
+        self.name = TextPropertyRequired("Name", "")
         self.bit_position = ValueProperty("BitPosition", 0)
 
 
@@ -43,12 +44,12 @@ class MoveNetworkFlag(MoveNetworkBit):
     tag_name = "Item"
 
 
-class MoveNetworkTriggersList(ListProperty):
+class MoveNetworkTriggersList(ListPropertyRequired):
     list_type = MoveNetworkTrigger
     tag_name = "MoveNetworkTriggers"
 
 
-class MoveNetworkFlagsList(ListProperty):
+class MoveNetworkFlagsList(ListPropertyRequired):
     list_type = MoveNetworkFlag
     tag_name = "MoveNetworkFlags"
 
@@ -199,7 +200,7 @@ class MoveNodeBase(ElementTree, AbstractClass):
     def __init__(self):
         super().__init__()
         self.type = AttributeProperty("type", self.type)
-        self.name = TextProperty("Name", "")
+        self.name = TextPropertyRequired("Name", "")
         self.node_index = ValueProperty("NodeIndex", 0)
 
 
@@ -207,8 +208,8 @@ class MoveNodeStateBase(MoveNodeBase):
     def __init__(self):
         super().__init__()
         self.state_unk3 = ValueProperty("StateUnk3", 0)
-        self.entry_parameter_name = TextProperty("EntryParameterName")
-        self.exit_parameter_name = TextProperty("ExitParameterName")
+        self.entry_parameter_name = TextPropertyRequired("EntryParameterName")
+        self.exit_parameter_name = TextPropertyRequired("ExitParameterName")
 
 
 class MoveNodePairBase(MoveNodeBase, AbstractClass):
@@ -221,11 +222,11 @@ class MoveNodePairBase(MoveNodeBase, AbstractClass):
 class MoveNodePairWeightedBase(MoveNodePairBase, AbstractClass):
     def __init__(self):
         super().__init__()
-        self.child0_influence_override = TextProperty("Child0InfluenceOverride")
-        self.child1_influence_override = TextProperty("Child1InfluenceOverride")
+        self.child0_influence_override = TextPropertyRequired("Child0InfluenceOverride")
+        self.child1_influence_override = TextPropertyRequired("Child1InfluenceOverride")
         self.weight = MoveParameterizedValueProperty("Weight")
         self.frame_filter = MoveParameterizedAssetProperty("FrameFilter")
-        self.synchronizer_type = TextProperty("SynchronizerType")
+        self.synchronizer_type = TextPropertyRequired("SynchronizerType")
         self.synchronizer_tag_flags = TextProperty("SynchronizerTagFlags")
         self.merge_blend = ValueProperty("MergeBlend", False)
         self.unk_flag6 = ValueProperty("UnkFlag6", False)
@@ -247,7 +248,7 @@ class MoveNodeWithChildAndFilterBase(MoveNodeWithChildBase, AbstractClass):
         self.frame_filter = MoveParameterizedAssetProperty("FrameFilter")
 
 
-class MoveNodeNChildren(ListProperty):
+class MoveNodeNChildren(ListPropertyRequired):
     class Child(ElementTree):
         tag_name = "Item"
 
@@ -264,10 +265,14 @@ class MoveNodeNChildren(ListProperty):
 class MoveNodeNBase(MoveNodeBase, AbstractClass):
     def __init__(self):
         super().__init__()
+        self.frame_filter = MoveParameterizedAssetProperty("FrameFilter")
+        self.synchronizer_type = TextPropertyRequired("SynchronizerType")
+        self.synchronizer_tag_flags = TextProperty("SynchronizerTagFlags")
+        self.zero_destination = ValueProperty("ZeroDestination", False)
         self.children = MoveNodeNChildren()
 
 
-class MoveStatesList(ListProperty):
+class MoveStatesList(ListPropertyRequired):
     list_type = MoveNodeStateBase
     tag_name = "States"
 
@@ -297,7 +302,7 @@ class MoveConditionBase(ElementTree, AbstractClass):
 class MoveConditionWithParameterAndRangeBase(MoveConditionBase, AbstractClass):
     def __init__(self):
         super().__init__()
-        self.parameter = TextProperty("ParameterName")
+        self.parameter = TextPropertyRequired("ParameterName")
         self.min = ValueProperty("Min", 0.0)
         self.max = ValueProperty("Max", 0.0)
 
@@ -305,7 +310,7 @@ class MoveConditionWithParameterAndRangeBase(MoveConditionBase, AbstractClass):
 class MoveConditionWithParameterAndValueBase(MoveConditionBase, AbstractClass):
     def __init__(self):
         super().__init__()
-        self.parameter = TextProperty("ParameterName")
+        self.parameter = TextPropertyRequired("ParameterName")
         self.value = ValueProperty("Value")  # float or bool
 
 
@@ -374,7 +379,7 @@ class MoveConditionBoolParameterEquals(MoveConditionWithParameterAndValueBase):
     type = "BoolParameterEquals"
 
 
-class MoveConditionsList(ListProperty):
+class MoveConditionsList(ListPropertyRequired):
     list_type = MoveConditionBase
     tag_name = "Conditions"
 
@@ -422,10 +427,10 @@ class MoveStateTransition(ElementTree):
         super().__init__()
         self.target_state = MoveNodeRef("TargetState")
         self.duration = ValueProperty("Duration", 0.0)
-        self.duration_parameter_name = TextProperty("EntryParameterName")
-        self.progress_parameter_name = TextProperty("ExitParameterName")
-        self.blend_modifier = TextProperty("BlendModifier")
-        self.synchronizer_type = TextProperty("SynchronizerType")
+        self.duration_parameter_name = TextPropertyRequired("DurationParameterName")
+        self.progress_parameter_name = TextPropertyRequired("ProgressParameterName")
+        self.blend_modifier = TextPropertyRequired("BlendModifier")
+        self.synchronizer_type = TextPropertyRequired("SynchronizerType")
         self.synchronizer_tag_flags = TextProperty("SynchronizerTagFlags")
         self.frame_filter = MoveParameterizedAssetProperty("FrameFilter")  # note: cannot actually use parameters here
         self.unk_flag2_detach_update_observers = ValueProperty("UnkFlag2_DetachUpdateObservers", False)
@@ -434,7 +439,7 @@ class MoveStateTransition(ElementTree):
         self.conditions = MoveConditionsList()
 
 
-class MoveStateTransitionsList(ListProperty):
+class MoveStateTransitionsList(ListPropertyRequired):
     list_type = MoveStateTransition
     tag_name = "Transitions"
 
@@ -444,13 +449,13 @@ class MoveStateInputParameter(ElementTree):
 
     def __init__(self):
         super().__init__()
-        self.source_parameter_name = TextProperty("SourceParameterName")
+        self.source_parameter_name = TextPropertyRequired("SourceParameterName")
         self.target_node_index = ValueProperty("TargetNodeIndex", 0)
         self.target_node_parameter_id = ValueProperty("TargetNodeParameterId", 0)
         self.target_node_parameter_extra_arg = ValueProperty("TargetNodeParameterExtraArg", 0)
 
 
-class MoveStateInputParametersList(ListProperty):
+class MoveStateInputParametersList(ListPropertyRequired):
     list_type = MoveStateInputParameter
     tag_name = "InputParameters"
 
@@ -460,13 +465,13 @@ class MoveStateOutputParameter(ElementTree):
 
     def __init__(self):
         super().__init__()
-        self.target_parameter_name = TextProperty("TargetParameterName")
+        self.target_parameter_name = TextPropertyRequired("TargetParameterName")
         self.source_node_index = ValueProperty("SourceNodeIndex", 0)
         self.source_node_parameter_id = ValueProperty("SourceNodeParameterId", 0)
         self.source_node_parameter_extra_arg = ValueProperty("SourceNodeParameterExtraArg", 0)
 
 
-class MoveStateOutputParametersList(ListProperty):
+class MoveStateOutputParametersList(ListPropertyRequired):
     list_type = MoveStateOutputParameter
     tag_name = "OutputParameters"
 
@@ -478,10 +483,10 @@ class MoveStateEvent(ElementTree):
         super().__init__()
         self.node_index = ValueProperty("NodeIndex", 0)
         self.node_event_id = ValueProperty("NodeEventId", 0)
-        self.parameter_name = TextProperty("ParameterName")
+        self.parameter_name = TextPropertyRequired("ParameterName")
 
 
-class MoveStateEventsList(ListProperty):
+class MoveStateEventsList(ListPropertyRequired):
     list_type = MoveStateEvent
     tag_name = "Events"
 
@@ -511,7 +516,7 @@ class MoveStateOperatorPushParameter(MoveStateOperatorBase):
 
     def __init__(self):
         super().__init__()
-        self.parameter_name = TextProperty("ParameterName")
+        self.parameter_name = TextPropertyRequired("ParameterName")
 
 
 class MoveStateOperatorAdd(MoveStateOperatorBase):
@@ -522,7 +527,7 @@ class MoveStateOperatorMultiply(MoveStateOperatorBase):
     type = "Multiply"
 
 
-class MoveStateOperatorRemapRanges(ListProperty):
+class MoveStateOperatorRemapRanges(ListPropertyRequired):
     class Range(ElementTree):
         tag_name = "Item"
 
@@ -546,7 +551,7 @@ class MoveStateOperatorRemap(MoveStateOperatorBase):
         self.ranges = MoveStateOperatorRemapRanges()
 
 
-class MoveStateOperatorsList(ListProperty):
+class MoveStateOperatorsList(ListPropertyRequired):
     list_type = MoveStateOperatorBase
     tag_name = "Operators"
 
@@ -584,7 +589,7 @@ class MoveStateOperation(ElementTree):
         self.operators = MoveStateOperatorsList()
 
 
-class MoveStateOperationsList(ListProperty):
+class MoveStateOperationsList(ListPropertyRequired):
     list_type = MoveStateOperation
     tag_name = "Operations"
 
@@ -668,13 +673,13 @@ class MoveNodeExtrapolate(MoveNodeWithChildBase):
         self.damping = MoveParameterizedValueProperty("Damping")
 
 
-class MoveExpressionVariablesList(ListProperty):
+class MoveExpressionVariablesList(ListPropertyRequired):
     class Variable(ElementTree):
         tag_name = "Item"
 
         def __init__(self):
             super().__init__()
-            self.name = TextProperty("Name")
+            self.name = TextPropertyRequired("Name")
             self.value = MoveParameterizedValueProperty("Value")
 
     list_type = Variable
@@ -704,7 +709,7 @@ class MoveNodeProxy(MoveNodeBase):
 
     def __init__(self):
         super().__init__()
-        self.node_parameter_name = TextProperty("NodeParameterName")
+        self.node_parameter_name = TextPropertyRequired("NodeParameterName")
 
 
 class MoveNodeAddN(MoveNodeNBase):
@@ -720,10 +725,10 @@ class MoveNodeMerge(MoveNodePairBase):
 
     def __init__(self):
         super().__init__()
-        self.child0_influence_override = TextProperty("Child0InfluenceOverride")
-        self.child1_influence_override = TextProperty("Child1InfluenceOverride")
+        self.child0_influence_override = TextPropertyRequired("Child0InfluenceOverride")
+        self.child1_influence_override = TextPropertyRequired("Child1InfluenceOverride")
         self.frame_filter = MoveParameterizedAssetProperty("FrameFilter")
-        self.synchronizer_type = TextProperty("SynchronizerType")
+        self.synchronizer_type = TextPropertyRequired("SynchronizerType")
         self.synchronizer_tag_flags = TextProperty("SynchronizerTagFlags")
         self.unk_flag6 = ValueProperty("UnkFlag6", False)
         self.unk_flag7 = ValueProperty("UnkFlag7", 0)
@@ -764,7 +769,7 @@ class MoveNodeSubNetwork(MoveNodeBase):
 
     def __init__(self):
         super().__init__()
-        self.subnetwork_parameter_name = TextProperty("SubNetworkParameterName")
+        self.subnetwork_parameter_name = TextPropertyRequired("SubNetworkParameterName")
 
 
 MoveNodeTypes = [
@@ -821,6 +826,14 @@ class MoveAnyNode(ElementTree):
             MoveAnyNode.read_value_error(element)
 
 
+class MoveNetworkUnk1(ElementTree):
+    tag_name = "Unk1"
+
+
+class MoveNetworkUnkBytes(ElementTree):
+    tag_name = "UnkBytes"
+
+
 class MoveNetwork(ElementTree, AbstractClass):
     tag_name = "MoveNetwork"
 
@@ -829,8 +842,8 @@ class MoveNetwork(ElementTree, AbstractClass):
         self.triggers = MoveNetworkTriggersList()
         self.flags = MoveNetworkFlagsList()
         self.root_state = None
-        # self.unk1 = None
-        # self.unk_bytes = None
+        self.unk1 = MoveNetworkUnk1()
+        self.unk_bytes = MoveNetworkUnkBytes()
 
     @classmethod
     def from_xml(cls, element: ET.Element):
