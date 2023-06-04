@@ -91,7 +91,12 @@ class ParameterizedAssetProperty(bpy.types.PropertyGroup):
 
 class ParameterizedClipProperty(bpy.types.PropertyGroup):
     use_parameter: bpy.props.BoolProperty(name="Use Parameter", default=False)
-    container_type: bpy.props.StringProperty(name="Container Type", default="")
+    container_type: bpy.props.EnumProperty(name="Container Type", items=[
+        ("VariableClipSet", "VariableClipSet", "VariableClipSet", 0),
+        ("ClipSet", "ClipSet", "ClipSet", 1),
+        ("ClipDictionary", "ClipDictionary", "ClipDictionary", 2),
+        ("Unk3", "Unk3", "Unk3", 3),
+    ])
     container_name: bpy.props.StringProperty(name="Container", default="")
     name: bpy.props.StringProperty(name="Name", default="")
     parameter: bpy.props.StringProperty(name="Parameter", default="")

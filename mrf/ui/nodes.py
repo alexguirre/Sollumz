@@ -123,7 +123,8 @@ class ATNodeStateMachine(ATNode0x1):
 
     def draw_buttons(self, context, layout):
         if self.state_machine_tree:
-            layout.operator(SOLLUMZ_OT_MOVE_NETWORK_open_state_machine.bl_idname).state_machine_tree_name = self.state_machine_tree.name
+            prop = layout.operator(SOLLUMZ_OT_MOVE_NETWORK_open_state_machine.bl_idname)
+            prop.state_machine_tree_name = self.state_machine_tree.name
 
 
 class ATNodeTail(ATNode0x1):
@@ -146,9 +147,11 @@ class ATNodeInlinedStateMachine(ATNode0x1):
 
     def draw_buttons(self, context, layout):
         if self.fallback_animation_tree:
-            layout.operator(SOLLUMZ_OT_MOVE_NETWORK_open_animation_tree.bl_idname).animation_tree_name = self.fallback_animation_tree.name
+            props = layout.operator(SOLLUMZ_OT_MOVE_NETWORK_open_animation_tree.bl_idname)
+            props.animation_tree_name = self.fallback_animation_tree.name
         if self.state_machine_tree:
-            layout.operator(SOLLUMZ_OT_MOVE_NETWORK_open_state_machine.bl_idname).state_machine_tree_name = self.state_machine_tree.name
+            props = layout.operator(SOLLUMZ_OT_MOVE_NETWORK_open_state_machine.bl_idname)
+            props.state_machine_tree_name = self.state_machine_tree.name
 
 
 class ATNodeBlend(ATNode2x1):
@@ -464,7 +467,8 @@ class SMNodeState(SMNodeStateBase):
 
     def draw_buttons(self, context, layout):
         if self.animation_tree:
-            layout.operator(SOLLUMZ_OT_MOVE_NETWORK_open_animation_tree.bl_idname).animation_tree_name = self.animation_tree.name
+            props = layout.operator(SOLLUMZ_OT_MOVE_NETWORK_open_animation_tree.bl_idname)
+            props.animation_tree_name = self.animation_tree.name
 
 
 class SMNodeStateMachine(SMNodeStateBase):
@@ -478,7 +482,8 @@ class SMNodeStateMachine(SMNodeStateBase):
 
     def draw_buttons(self, context, layout):
         if self.state_machine_tree:
-            layout.operator(SOLLUMZ_OT_MOVE_NETWORK_open_state_machine.bl_idname).state_machine_tree_name = self.state_machine_tree.name
+            props = layout.operator(SOLLUMZ_OT_MOVE_NETWORK_open_state_machine.bl_idname)
+            props.state_machine_tree_name = self.state_machine_tree.name
 
 
 classes = [
