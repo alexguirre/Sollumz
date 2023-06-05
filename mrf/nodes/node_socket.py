@@ -13,11 +13,3 @@ class NodeSocket(bpy.types.NodeSocket):
 
     def draw_color(self, context, node):
         return self.socket_color
-
-
-def register():
-    pass # bpy.utils.register_class(NodeSocket)
-
-
-def unregister():
-    pass # bpy.utils.unregister_class(NodeSocket)

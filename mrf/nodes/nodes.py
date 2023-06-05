@@ -16,7 +16,7 @@ class StateMachineNodeBase(bpy.types.Node):
 
     @classmethod
     def poll(cls, ntree):
-        return ntree.bl_idname == NetworkTree.bl_idname
+        return ntree.bl_idname == NetworkTree.bl_idname and ntree.network_tree_type in {"ROOT", "STATE_MACHINE"}
 
 
 class AnimationTreeNodeBase(bpy.types.Node):
@@ -28,7 +28,7 @@ class AnimationTreeNodeBase(bpy.types.Node):
 
     @classmethod
     def poll(cls, ntree):
-        return ntree.bl_idname == NetworkTree.bl_idname
+        return ntree.bl_idname == NetworkTree.bl_idname and ntree.network_tree_type == "ANIMATION_TREE"
 
     def init_from_xml(self, node_xml):
         raise NotImplementedError
@@ -447,13 +447,15 @@ class SMNodeStateBase(StateMachineNodeBase):
     bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_SMNodeStateBase'
 
     transitions: bpy.props.CollectionProperty(name="Transitions", type=SMTransitionProperties)
+    ui_active_transition_index: bpy.props.IntProperty()
 
     def init(self, context):
         pass
 
-    def add_transition(self, target_state):
+    def add_transition(self, target_state, transition_xml: MoveStateTransition):
         t = self.transitions.add()
         t.target_state = target_state.name
+        t.set(transition_xml)
 
 
 class SMNodeState(SMNodeStateBase):
@@ -466,6 +468,7 @@ class SMNodeState(SMNodeStateBase):
         pass
 
     def draw_buttons(self, context, layout):
+        layout.template_list("UI_UL_list", "Transitions", self, "transitions", self, "ui_active_transition_index")
         if self.animation_tree:
             props = layout.operator(SOLLUMZ_OT_MOVE_NETWORK_open_animation_tree.bl_idname)
             props.animation_tree_name = self.animation_tree.name
@@ -481,6 +484,7 @@ class SMNodeStateMachine(SMNodeStateBase):
         pass
 
     def draw_buttons(self, context, layout):
+        layout.template_list("UI_UL_list", "Transitions", self, "transitions", self, "ui_active_transition_index")
         if self.state_machine_tree:
             props = layout.operator(SOLLUMZ_OT_MOVE_NETWORK_open_state_machine.bl_idname)
             props.state_machine_tree_name = self.state_machine_tree.name

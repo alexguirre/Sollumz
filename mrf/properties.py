@@ -1,5 +1,5 @@
 import bpy
-from ..cwxml.mrf import MoveParameterizedValueProperty, MoveParameterizedAssetProperty, MoveParameterizedClipProperty
+from ..cwxml.mrf import *
 
 
 # class MoveNetworkBitProperties(bpy.types.PropertyGroup):
@@ -127,6 +127,46 @@ class ParameterizedClipProperty(bpy.types.PropertyGroup):
 
 class SMTransitionProperties(bpy.types.PropertyGroup):
     target_state: bpy.props.StringProperty(name="Target State", default="")
+    duration: bpy.props.FloatProperty(name="Duration", default=0.0)
+    duration_parameter_name: bpy.props.StringProperty(name="Duration Parameter Name", default="")
+    progress_parameter_name: bpy.props.StringProperty(name="Progress Parameter Name", default="")
+    blend_modifier: bpy.props.StringProperty(name="Blend Modifier", default="")
+    synchronizer_type: bpy.props.StringProperty(name="Synchronizer Type", default="")
+    synchronizer_tag_flags: bpy.props.StringProperty(name="Synchronizer Tag Flags", default="")
+    frame_filter: bpy.props.PointerProperty(name='Frame Filter', type=ParameterizedAssetProperty)
+    unk_flag2_detach_update_observers: bpy.props.BoolProperty(name="Unk Flag 2 Detach Update Observers", default=False)
+    unk_flag18: bpy.props.BoolProperty(name="Unk Flag 18", default=False)
+    unk_flag19: bpy.props.BoolProperty(name="Unk Flag 19", default=False)
+    # conditions: bpy.props.CollectionProperty(name="Conditions", type=SMConditionProperties)
+
+    ui_from: bpy.props.FloatVectorProperty(default=(0.0, 0.0), size=2)
+    ui_to: bpy.props.FloatVectorProperty(default=(0.0, 0.0), size=2)
+    ui_hovered: bpy.props.BoolProperty(default=False, update=lambda s, c: c.region.tag_redraw())
+    ui_active: bpy.props.BoolProperty(default=False, update=lambda s, c: c.region.tag_redraw())
+
+    # self.duration = ValueProperty("Duration", 0.0)
+    # self.duration_parameter_name = TextPropertyRequired("DurationParameterName")
+    # self.progress_parameter_name = TextPropertyRequired("ProgressParameterName")
+    # self.blend_modifier = TextPropertyRequired("BlendModifier")
+    # self.synchronizer_type = TextPropertyRequired("SynchronizerType")
+    # self.synchronizer_tag_flags = TextProperty("SynchronizerTagFlags")
+    # self.frame_filter = MoveParameterizedAssetProperty("FrameFilter")  # note: cannot actually use parameters here
+    # self.unk_flag2_detach_update_observers = ValueProperty("UnkFlag2_DetachUpdateObservers", False)
+    # self.unk_flag18 = ValueProperty("UnkFlag18", False)
+    # self.unk_flag19 = ValueProperty("UnkFlag19", False)
+    # self.conditions = MoveConditionsList()
+
+    def set(self, v: MoveStateTransition):
+        self.duration = v.duration
+        self.duration_parameter_name = v.duration_parameter_name
+        self.progress_parameter_name = v.progress_parameter_name
+        self.blend_modifier = v.blend_modifier
+        self.synchronizer_type = v.synchronizer_type
+        self.synchronizer_tag_flags = v.synchronizer_tag_flags
+        self.frame_filter.set(v.frame_filter)
+        self.unk_flag2_detach_update_observers = v.unk_flag2_detach_update_observers
+        self.unk_flag18 = v.unk_flag18
+        self.unk_flag19 = v.unk_flag19
 
 
 def register():

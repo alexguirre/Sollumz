@@ -1,4 +1,3 @@
-import bpy
 import nodeitems_utils
 from .node_tree import NetworkTree
 from .nodes import *

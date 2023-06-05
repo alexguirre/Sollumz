@@ -1,7 +1,7 @@
 import bpy
 from ..cwxml.mrf import *
-from .ui.node_tree import NetworkTree
-from .ui.nodes import *
+from .nodes.node_tree import NetworkTree
+from .nodes.nodes import *
 import os
 
 
@@ -40,7 +40,7 @@ def create_state_machine_graph_tree(parent_name, state_machine, network_root: Ne
             continue
         for t in state.transitions:
             target_node = states_nodes[states_by_name[t.target_state]]
-            node.add_transition(target_node)
+            node.add_transition(target_node, t)
     initial_node = states_nodes[states_by_name[state_machine.initial_state]]
     start_node = state_machine_graph_tree.nodes.new(SMNodeStart.bl_idname)
     start_node.name = "start"
