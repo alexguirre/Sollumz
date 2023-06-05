@@ -457,6 +457,12 @@ class SMNodeStateBase(StateMachineNodeBase):
         t.target_state = target_state.name
         t.set(transition_xml)
 
+    def draw_buttons(self, context, layout):
+        # layout.template_list("UI_UL_list", "Transitions", self, "transitions", self, "ui_active_transition_index")
+        layout.context_pointer_set("node", self)
+        layout.operator("sollumz.move_network_editor_state_add_transition")
+        layout.operator("sollumz.move_network_editor_state_connect_transition")
+
 
 class SMNodeState(SMNodeStateBase):
     bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_SMNodeState'
@@ -468,7 +474,7 @@ class SMNodeState(SMNodeStateBase):
         pass
 
     def draw_buttons(self, context, layout):
-        layout.template_list("UI_UL_list", "Transitions", self, "transitions", self, "ui_active_transition_index")
+        super().draw_buttons(context, layout)
         if self.animation_tree:
             props = layout.operator(SOLLUMZ_OT_MOVE_NETWORK_open_animation_tree.bl_idname)
             props.animation_tree_name = self.animation_tree.name
@@ -484,7 +490,7 @@ class SMNodeStateMachine(SMNodeStateBase):
         pass
 
     def draw_buttons(self, context, layout):
-        layout.template_list("UI_UL_list", "Transitions", self, "transitions", self, "ui_active_transition_index")
+        super().draw_buttons(context, layout)
         if self.state_machine_tree:
             props = layout.operator(SOLLUMZ_OT_MOVE_NETWORK_open_state_machine.bl_idname)
             props.state_machine_tree_name = self.state_machine_tree.name

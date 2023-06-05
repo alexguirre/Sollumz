@@ -18,3 +18,5 @@ class NetworkTree(bpy.types.NodeTree):
 
     ui_active_transition_source_node_name: bpy.props.StringProperty(default="")
     ui_active_transition_index: bpy.props.IntProperty()
+
+    ui_adding_transition_source_node_name: bpy.props.StringProperty(default="")

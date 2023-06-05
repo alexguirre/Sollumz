@@ -87,6 +87,8 @@ def draw_transition_arrows(pos_pairs, hovered_idx, active_idx):
     active_color = (0.35, 0.35, 0.85, 1)
     rot1 = mathutils.Matrix.Rotation(math.pi * 0.1, 2)
     rot2 = mathutils.Matrix.Rotation(-math.pi * 0.1, 2)
+    coords = []
+    colors = []
     i = 0
     for vfrom, vto in pos_pairs:
         vdir1 = (vfrom - vto).normalized()
@@ -96,35 +98,36 @@ def draw_transition_arrows(pos_pairs, hovered_idx, active_idx):
         arrow_tip1 = vto + vdir1 * 30
         arrow_tip2 = vto + vdir2 * 30
 
-        coords = [
+        coords.extend([
             (vfrom.x, vfrom.y, 0), (vto.x, vto.y, 0),
             (vto.x, vto.y, 0), (arrow_tip1.x, arrow_tip1.y, 0),
             (vto.x, vto.y, 0), (arrow_tip2.x, arrow_tip2.y, 0)
-        ]
+        ])
         if i == hovered_idx:
-            colors = [
+            colors.extend([
                 hovered_color, hovered_color,
                 hovered_color, hovered_color,
                 hovered_color, hovered_color
-            ]
+            ])
         elif i == active_idx:
-            colors = [
+            colors.extend([
                 active_color, active_color,
                 active_color, active_color,
                 active_color, active_color
-            ]
+            ])
         else:
-            colors = [
+            colors.extend([
                 source_color, target_color,
                 target_color, target_color,
                 target_color, target_color
-            ]
-        batch = batch_for_shader(shader, 'LINES', {"pos": coords, "color": colors})
-        # shader.uniform_float("color", (1, 1, 0, 1))
-        gpu.state.line_width_set(3)
-        batch.draw(shader)
+            ])
 
         i += 1
+
+    batch = batch_for_shader(shader, 'LINES', {"pos": coords, "color": colors})
+    # shader.uniform_float("color", (1, 1, 0, 1))
+    gpu.state.line_width_set(3)
+    batch.draw(shader)
 
 
 def fix_transition_arrows_overlaps(pos_pairs):
@@ -158,15 +161,7 @@ def fix_transition_arrows_overlaps(pos_pairs):
         pos_pairs[j] = (vfrom2 - perp * 7, vto2 - perp * 7)
 
 
-def draw_state_machine_transitions():
-    space = bpy.context.space_data
-    if space.tree_type != NetworkTree.bl_idname:
-        return
-
-    node_tree = space.edit_tree
-    if node_tree is None or node_tree.network_tree_type not in {"ROOT", "STATE_MACHINE"}:
-        return
-
+def draw_state_machine_transitions(node_tree):
     transition_arrows = []
     hovered_idx = None
     active_idx = None
@@ -190,16 +185,58 @@ def draw_state_machine_transitions():
     draw_transition_arrows(transition_arrows, hovered_idx, active_idx)
 
 
-draw_state_machine_transitions_handle = None
+# def draw_states_drag_area(node_tree):
+#     margin = 8
+#
+#     color = (0.45, 0.45, 0.45, 1)
+#
+#     coords = []
+#     colors = []
+#     for node in node_tree.nodes:
+#         vpos = node.location
+#         vsize = node.dimensions
+#         left_x = vpos.x - margin
+#         right_x = vpos.x + vsize.x + margin
+#         top_y = vpos.y + margin
+#         bottom_y = vpos.y - vsize.y - margin
+#
+#         coords.append((left_x, top_y, 0))
+#         coords.append((right_x, top_y, 0))
+#         coords.append((right_x, top_y, 0))
+#         coords.append((right_x, bottom_y, 0))
+#         coords.append((right_x, bottom_y, 0))
+#         coords.append((left_x, bottom_y, 0))
+#         coords.append((left_x, bottom_y, 0))
+#         coords.append((left_x, top_y, 0))
+#         colors.extend([color] * 8)
+#
+#     batch = batch_for_shader(shader, 'LINES', {"pos": coords, "color": colors})
+#     gpu.state.line_width_set(margin * 4)
+#     batch.draw(shader)
+
+
+def draw_callback():
+    space = bpy.context.space_data
+    if space.tree_type != NetworkTree.bl_idname:
+        return
+
+    node_tree = space.edit_tree
+    if node_tree is None or node_tree.network_tree_type not in {"ROOT", "STATE_MACHINE"}:
+        return
+
+    # draw_states_drag_area(node_tree)
+    draw_state_machine_transitions(node_tree)
+
+
+draw_callback_handles = []
 
 
 def register():
-    global draw_state_machine_transitions_handle
-    draw_state_machine_transitions_handle = bpy.types.SpaceNodeEditor.draw_handler_add(draw_state_machine_transitions, (), 'WINDOW', 'POST_VIEW')
+    handle = bpy.types.SpaceNodeEditor.draw_handler_add(draw_callback, (), 'WINDOW', 'POST_VIEW')
+    draw_callback_handles.append(handle)
 
 
 def unregister():
-    global draw_state_machine_transitions_handle
-    if draw_state_machine_transitions_handle is not None:
-        bpy.types.SpaceNodeEditor.draw_handler_remove(draw_state_machine_transitions_handle, 'WINDOW')
-        draw_state_machine_transitions_handle = None
+    for handle in draw_callback_handles:
+        bpy.types.SpaceNodeEditor.draw_handler_remove(handle, 'WINDOW')
+    draw_callback_handles.clear()
