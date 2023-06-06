@@ -20,12 +20,10 @@ class SOLLUMZ_OT_MOVE_NETWORK_editor_state_machine_input(bpy.types.Operator):
 
         # context.region.tag_redraw()
 
-        region = context.region.view2d
-        ui_scale = context.preferences.system.ui_scale
-        x, y = region.region_to_view(event.mouse_region_x, event.mouse_region_y)
-        x, y = x / ui_scale, y / ui_scale
-
-        pos = mathutils.Vector((x, y))
+        region = context.region
+        if (event.mouse_region_x < 0 or event.mouse_region_x > region.width or
+            event.mouse_region_y < 0 or event.mouse_region_y > region.height):
+            return {"PASS_THROUGH"}
 
         space = context.space_data
         if space.tree_type != NetworkTree.bl_idname:
@@ -34,6 +32,12 @@ class SOLLUMZ_OT_MOVE_NETWORK_editor_state_machine_input(bpy.types.Operator):
         node_tree = space.edit_tree
         if node_tree is None or node_tree.network_tree_type not in {"ROOT", "STATE_MACHINE"}:
             return {"PASS_THROUGH"}
+
+        ui_scale = context.preferences.system.ui_scale
+        x, y = region.view2d.region_to_view(event.mouse_region_x, event.mouse_region_y)
+        x, y = x / ui_scale, y / ui_scale
+
+        pos = mathutils.Vector((x, y))
 
         for node in node_tree.nodes:
             if node.bl_idname == "SOLLUMZ_NT_MOVE_NETWORK_SMNodeStart":

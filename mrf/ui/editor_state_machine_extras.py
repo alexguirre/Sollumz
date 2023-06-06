@@ -130,18 +130,18 @@ def draw_transition_arrows(pos_pairs, hovered_idx, active_idx):
     batch.draw(shader)
 
 
-def fix_transition_arrows_overlaps(pos_pairs):
+def fix_transition_arrows_overlaps(arrows, arrow_index_to_transition):
     fixed = set()
-    for i in range(len(pos_pairs)):
+    for i in range(len(arrows)):
         if i in fixed:
             continue
 
-        vfrom1, vto1 = pos_pairs[i]
+        vfrom1, vto1 = arrows[i]
         overlaps = []
-        for j in range(len(pos_pairs)):
+        for j in range(len(arrows)):
             if i == j or j in fixed:
                 continue
-            vfrom2, vto2 = pos_pairs[j]
+            vfrom2, vto2 = arrows[j]
             if (vfrom1 == vfrom1 and vto1 == vto2) or (vfrom1 == vto2 and vto1 == vfrom2):
                 overlaps.append(j)
                 fixed.add(i)
@@ -155,13 +155,21 @@ def fix_transition_arrows_overlaps(pos_pairs):
             continue
 
         j = overlaps[0]
-        vfrom2, vto2 = pos_pairs[j]
+        vfrom2, vto2 = arrows[j]
         perp = (vto1 - vfrom1).normalized().orthogonal()
-        pos_pairs[i] = (vfrom1 + perp * 7, vto1 + perp * 7)
-        pos_pairs[j] = (vfrom2 - perp * 7, vto2 - perp * 7)
+        separation = 8
+        arrows[i] = (vfrom1 + perp * separation, vto1 + perp * separation)
+        arrows[j] = (vfrom2 - perp * separation, vto2 - perp * separation)
+        if arrow_index_to_transition[i] is not None:
+            arrow_index_to_transition[i].ui_from = arrows[i][0]
+            arrow_index_to_transition[i].ui_to = arrows[i][1]
+        if arrow_index_to_transition[j] is not None:
+            arrow_index_to_transition[j].ui_from = arrows[j][0]
+            arrow_index_to_transition[j].ui_to = arrows[j][1]
 
 
 def draw_state_machine_transitions(node_tree):
+    arrow_index_to_transition = []
     transition_arrows = []
     hovered_idx = None
     active_idx = None
@@ -169,6 +177,7 @@ def draw_state_machine_transitions(node_tree):
         if node.bl_idname == "SOLLUMZ_NT_MOVE_NETWORK_SMNodeStart":
             start_node = node_tree.nodes[node.start_state]
             transition_arrows.append(calc_transition_arrow(node, start_node))
+            arrow_index_to_transition.append(None)
         else:
             for t in node.transitions:
                 target_node = node_tree.nodes[t.target_state]
@@ -180,8 +189,9 @@ def draw_state_machine_transitions(node_tree):
                 if t.ui_active:
                     active_idx = len(transition_arrows)
                 transition_arrows.append(arrow)
+                arrow_index_to_transition.append(t)
 
-    fix_transition_arrows_overlaps(transition_arrows)
+    fix_transition_arrows_overlaps(transition_arrows, arrow_index_to_transition)
     draw_transition_arrows(transition_arrows, hovered_idx, active_idx)
 
 
