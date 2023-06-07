@@ -6,19 +6,35 @@ from .clip_player import ClipPlayer
 
 class NetworkPlayer:
     def __init__(self, network: NetworkTree):
+        assert network.network_tree_type == "ROOT"
+
         self.network = network
+        self.animation_tree_to_preview = None
         self.armature = None
         self.armature_obj = None
         self.frame_changed_handler = lambda scene: self.frame_changed(scene)
         self.is_playing = False
         self.frame_curr = 0
         self.frame_prev = 0
-        self.tmp = True
 
         self.clip_player1 = None
         self.clip_player2 = None
 
+    def set_animation_tree_to_preview(self, animation_tree: NetworkTree):
+        """Set to preview a specific animation tree instead of the whole MoVE network."""
+        assert animation_tree.network_tree_type == "ANIMATION_TREE"
+        assert not self.is_playing, "Cannot change animation tree while playing."
+
+        self.animation_tree_to_preview = animation_tree
+
+    def clear_animation_tree_to_preview(self):
+        assert not self.is_playing, "Cannot change animation tree while playing."
+
+        self.animation_tree_to_preview = None
+
     def set_armature(self, armature):
+        assert not self.is_playing, "Cannot change armature while playing."
+
         self.armature = armature
         self.armature_obj = get_armature_obj(armature)
 
@@ -28,8 +44,11 @@ class NetworkPlayer:
         self.clip_player2 = ClipPlayer(clip_obj2, self.armature_obj)
 
     def play(self):
+        assert self.armature is not None, "Armature must be set."
+
         if self.is_playing:
             return
+
         self.frame_curr = 0
         self.frame_prev = 0
         bpy.context.scene.frame_start = 0
@@ -42,6 +61,7 @@ class NetworkPlayer:
     def stop(self):
         if not self.is_playing:
             return
+
         bpy.app.handlers.frame_change_pre.remove(self.frame_changed_handler)
         # bpy.ops.screen.animation_cancel()
         self.is_playing = False

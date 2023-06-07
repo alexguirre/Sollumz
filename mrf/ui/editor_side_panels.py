@@ -1,7 +1,8 @@
 import bpy
 from ..nodes.node_tree import NetworkTree
 from ...sollumz_ui import SOLLUMZ_UL_armature_list
-from ..operators.preview import SOLLUMZ_OT_MOVE_NETWORK_preview
+from ..operators.preview_network import SOLLUMZ_OT_MOVE_NETWORK_preview_network
+from ..operators.preview_animation_tree import SOLLUMZ_OT_MOVE_NETWORK_preview_animation_tree
 
 
 class NetworkPropertiesPanel(bpy.types.Panel):
@@ -29,7 +30,7 @@ class NetworkPropertiesPanel(bpy.types.Panel):
         armature_list_box.template_list(SOLLUMZ_UL_armature_list.bl_idname, "",
                                         bpy.data, "armatures", node_tree, "selected_armature")
 
-        self.layout.operator(SOLLUMZ_OT_MOVE_NETWORK_preview.bl_idname)
+        self.layout.operator(SOLLUMZ_OT_MOVE_NETWORK_preview_network.bl_idname)
 
         self.layout.prop(node_tree, "debug_blend_weight")
         self.layout.prop(node_tree, "debug_phase")
@@ -53,9 +54,9 @@ class AnimationTreePropertiesPanel(bpy.types.Panel):
     def draw(self, context):
         node_tree = context.space_data.edit_tree
 
-        self.layout.prop(node_tree, 'name')
-        for prop in node_tree.__annotations__:
-            self.layout.prop(node_tree, prop)
+        self.layout.prop(node_tree, "name")
+
+        self.layout.operator(SOLLUMZ_OT_MOVE_NETWORK_preview_animation_tree.bl_idname)
 
 
 class SOLLUMZ_UL_MOVE_NETWORK_SMConditionsList(bpy.types.UIList):
