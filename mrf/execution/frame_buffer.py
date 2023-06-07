@@ -52,16 +52,26 @@ def quaternion_slerp(a, b, t):  # return in q1
     a[:, 2] = t2
     a[:, 3] = t3
 
+
 class FrameBuffer:
-    def __init__(self, num_bones, position_data=None, rotation_data=None, scale_data=None):
+    def __init__(self, num_bones, buffer_to_copy=None):
         self.num_bones = num_bones
-        self.position_data = np.zeros((num_bones, 3), dtype=np.float32) if position_data is None else position_data.copy()
-        if rotation_data is None:
-            self.rotation_data = np.zeros((num_bones, 4), dtype=np.float32)
-            self.rotation_data[:, 0] = 1.0
+        # allocate buffer that can hold position, rotation and scale data
+        if buffer_to_copy is None:
+            self.buffer = np.empty(num_bones * 10, dtype=np.float32)  # 10 -> (x y z) + (w x y z) + (x y z)
         else:
-            self.rotation_data = rotation_data.copy()
-        self.scale_data = np.ones((num_bones, 3), dtype=np.float32) if scale_data is None else scale_data.copy()
+            self.buffer = buffer_to_copy.copy()
+
+        # buffer views for position, rotation and scale data
+        position_end = num_bones * 3  # 3 -> (x y z)
+        rotation_end = num_bones * 7  # 7 -> (x y z) + (w x y z)
+        self.position_data = self.buffer[:position_end].reshape((num_bones, 3))
+        self.rotation_data = self.buffer[position_end:rotation_end].reshape((num_bones, 4))
+        self.scale_data = self.buffer[rotation_end:].reshape((num_bones, 3))
+
+        # default to identity if not making a copy
+        if buffer_to_copy is None:
+            self.make_identity()
 
     def apply_to_armature_obj(self, armature_obj):
         armature_obj.pose.bones.foreach_set("location", self.position_data.ravel())
@@ -71,12 +81,13 @@ class FrameBuffer:
         armature_obj.pose.bones[0].location.x += 0.0  # workaround to trigger an update, otherwise the bones remain unchanged in the viewport
 
     def copy(self):
-        return FrameBuffer(self.num_bones, self.position_data, self.rotation_data, self.scale_data)
+        return FrameBuffer(self.num_bones, self.buffer)
 
     def make_identity(self):
-        self.position_data.fill(0.0)
-        self.rotation_data[:] = [1.0, 0.0, 0.0, 0.0]
-        self.scale_data.fill(1.0)
+        # note for quaternions 'fill(0.0) + [:,0] = 1.0' is faster than '[:] = [1.0, 0.0, 0.0, 0.0]'
+        self.buffer[:self.num_bones * 7].fill(0.0)  # position and rotation to zero
+        self.rotation_data[:, 0] = 1.0              # rotation to identity
+        self.scale_data.fill(1.0)                   # scale to one
 
     def combine(self, other):
         self.position_data += other.position_data
