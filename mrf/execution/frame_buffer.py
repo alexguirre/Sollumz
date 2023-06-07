@@ -53,11 +53,15 @@ def quaternion_slerp(a, b, t):  # return in q1
     a[:, 3] = t3
 
 class FrameBuffer:
-    def __init__(self, num_bones):
+    def __init__(self, num_bones, position_data=None, rotation_data=None, scale_data=None):
         self.num_bones = num_bones
-        self.position_data = np.zeros((num_bones, 3), dtype=np.float32)
-        self.rotation_data = np.tile([1.0, 0.0, 0.0, 0.0], (num_bones, 1))
-        self.scale_data = np.ones((num_bones, 3), dtype=np.float32)
+        self.position_data = np.zeros((num_bones, 3), dtype=np.float32) if position_data is None else position_data.copy()
+        if rotation_data is None:
+            self.rotation_data = np.zeros((num_bones, 4), dtype=np.float32)
+            self.rotation_data[:, 0] = 1.0
+        else:
+            self.rotation_data = rotation_data.copy()
+        self.scale_data = np.ones((num_bones, 3), dtype=np.float32) if scale_data is None else scale_data.copy()
 
     def apply_to_armature_obj(self, armature_obj):
         armature_obj.pose.bones.foreach_set("location", self.position_data.ravel())
@@ -67,11 +71,7 @@ class FrameBuffer:
         armature_obj.pose.bones[0].location.x += 0.0  # workaround to trigger an update, otherwise the bones remain unchanged in the viewport
 
     def copy(self):
-        new_frame_buffer = FrameBuffer(self.num_bones)
-        new_frame_buffer.position_data[:] = self.position_data
-        new_frame_buffer.rotation_data[:] = self.rotation_data
-        new_frame_buffer.scale_data[:] = self.scale_data
-        return new_frame_buffer
+        return FrameBuffer(self.num_bones, self.position_data, self.rotation_data, self.scale_data)
 
     def make_identity(self):
         self.position_data.fill(0.0)

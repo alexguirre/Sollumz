@@ -15,13 +15,8 @@ class ClipPlayer:
         self.frame_curr = 0
         self.frame_count = round(clip_properties.duration * bpy.context.scene.render.fps)
         num_bones = len(armature_obj.pose.bones)
-        self.frames = [FrameBuffer(num_bones) for i in range(self.frame_count)]  # TODO: get num_bones from armature
+        self.frames = [FrameBuffer(num_bones) for _ in range(self.frame_count)]
         # TODO: set framebuffer from original pose of armature
-        # self.armature = get_armature_obj(
-        #     self.clip_dictionary.clip_dict_properties.armature)
-        #
-        # if armature is None:
-        #     return {"FINISHED"}
 
         bone_name_to_index = {}
         bone_index = 0
@@ -36,21 +31,16 @@ class ClipPlayer:
                 continue
 
             animation_properties = clip_animation.animation.animation_properties
-            # print("animation_properties = %s" % animation_properties)
 
             start_frames = clip_animation.start_frame
             end_frames = clip_animation.end_frame
-            # print("start_frames = %s" % start_frames)
-            # print("end_frames = %s" % end_frames)
 
             actions = []
 
             if animation_properties.base_action is not None:
-                # print("animation_properties.base_action = %s" % animation_properties)
                 actions.append(animation_properties.base_action)
 
             if animation_properties.root_motion_location_action is not None:
-                # print("animation_properties.root_motion_location_action = %s" % animation_properties.root_motion_location_action)
                 actions.append(animation_properties.root_motion_location_action)
 
             for action in actions:
@@ -66,18 +56,12 @@ class ClipPlayer:
                     "action": action,
                 })
 
-        tmp_buffer = FrameBuffer(num_bones)  # TODO: get num_bones from armature
+        tmp_buffer = FrameBuffer(num_bones)
         for group_name, clips in groups.items():
-            # if tmp_done:
-            #     break
             for clip in clips:
-                # print("group_name = %s, clips = %s, clip = %s" % (group_name, clips, clip))
                 action_frame_start = clip["start_frames"]
                 action_frame_end = clip["end_frames"]
                 action = clip["action"]
-
-                # if "_base" not in group_name:
-                #     continue
 
                 curves = []
                 for fcurve in action.fcurves:
@@ -101,11 +85,10 @@ class ClipPlayer:
                     tmp_buffer.make_identity()
                     frame_interpolated = bl_math.lerp(action_frame_start, action_frame_end, frame / self.frame_count)
 
-                    # print("frame_interpolated = %s" % frame_interpolated)
                     for fcurve, bone_index, data_type in curves:
                         index = fcurve.array_index
                         val = fcurve.evaluate(frame_interpolated)
-                        # print(" > '%s' = %s" % (fcurve.data_path, val))
+
                         if data_type == 0:
                             tmp_buffer.position_data[bone_index][index] = val
                         elif data_type == 1:
@@ -120,7 +103,16 @@ class ClipPlayer:
                     elif "_base" in group_name:
                         self.frames[frame].combine(tmp_buffer)
 
+    @property
+    def phase(self):
+        return self.frame_curr / (self.frame_count - 1)
+
+    @phase.setter
+    def phase(self, value):
+        self.frame_curr = round((self.frame_count - 1) * value)
+
     def frame_update(self):
+        # TODO: use time or phase to determine frame and interpolate between frames
         if self.frame_curr >= self.frame_count:
             self.frame_curr = 0
 

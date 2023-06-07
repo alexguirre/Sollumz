@@ -30,8 +30,11 @@ class NetworkPlayer:
     def play(self):
         if self.is_playing:
             return
-        self.frame_curr = bpy.context.scene.frame_current
-        self.frame_prev = bpy.context.scene.frame_current
+        self.frame_curr = 0
+        self.frame_prev = 0
+        bpy.context.scene.frame_start = 0
+        bpy.context.scene.frame_end = 1048574  # max frame count
+        bpy.context.scene.frame_set(0)
         bpy.app.handlers.frame_change_pre.append(self.frame_changed_handler)
         # bpy.ops.screen.animation_play()
         self.is_playing = True
@@ -44,16 +47,12 @@ class NetworkPlayer:
         self.is_playing = False
 
     def frame_update(self):
-        self.clip_player1.frame_curr = round(bl_math.clamp(self.clip_player1.frame_count * self.network.debug_phase, 0, self.clip_player1.frame_count - 1))
-        self.clip_player2.frame_curr = round(bl_math.clamp(self.clip_player2.frame_count * self.network.debug_phase, 0, self.clip_player2.frame_count - 1))
+        self.clip_player1.phase = self.network.debug_phase
+        self.clip_player2.phase = self.network.debug_phase
         frame1 = self.clip_player1.frame_update()
         frame2 = self.clip_player2.frame_update()
-        print(self.network.debug_blend_weight)
         frame1.blend(frame2, self.network.debug_blend_weight)
         frame1.apply_to_armature_obj(self.armature_obj)
-        # if self.frame_curr % 10 == 0:
-        #     self.armature_obj.pose.bones[1].location.x += 2 if self.tmp else -2
-        #     self.tmp = not self.tmp
 
     def frame_changed(self, scene):
         frame = scene.frame_current
