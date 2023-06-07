@@ -1,5 +1,4 @@
 import bpy
-from ..properties import SMTransitionProperties
 
 NetworkTreeTypes = [
     ("ROOT", "Root", "Root tree", 0),
@@ -20,3 +19,12 @@ class NetworkTree(bpy.types.NodeTree):
     ui_active_transition_index: bpy.props.IntProperty()
 
     ui_adding_transition_source_node_name: bpy.props.StringProperty(default="")
+
+    selected_armature: bpy.props.IntProperty(
+        name="Armature",
+        description="Armature on which the MoVE Network will be previewed.",
+        default=-1,
+    )
+
+    debug_blend_weight: bpy.props.FloatProperty(default=0.5, min=0.0, max=1.0)
+    debug_phase: bpy.props.FloatProperty(default=0.5, min=0.0, max=1.0)

@@ -1,5 +1,8 @@
 import bpy
 from ..nodes.node_tree import NetworkTree
+from ...sollumz_ui import SOLLUMZ_UL_armature_list
+from ..operators.preview import SOLLUMZ_OT_MOVE_NETWORK_preview
+
 
 class NetworkPropertiesPanel(bpy.types.Panel):
     bl_label = "MoVE Network"
@@ -19,9 +22,17 @@ class NetworkPropertiesPanel(bpy.types.Panel):
         if node_tree.network_root is not None:
             node_tree = node_tree.network_root
 
-        self.layout.prop(node_tree, 'name')
-        for prop in node_tree.__annotations__:
-            self.layout.prop(node_tree, prop)
+        self.layout.prop(node_tree, "name")
+
+        armature_list_box = self.layout.box()
+        armature_list_box.label(text="Target skeleton")
+        armature_list_box.template_list(SOLLUMZ_UL_armature_list.bl_idname, "",
+                                        bpy.data, "armatures", node_tree, "selected_armature")
+
+        self.layout.operator(SOLLUMZ_OT_MOVE_NETWORK_preview.bl_idname)
+
+        self.layout.prop(node_tree, "debug_blend_weight")
+        self.layout.prop(node_tree, "debug_phase")
 
 
 class AnimationTreePropertiesPanel(bpy.types.Panel):
