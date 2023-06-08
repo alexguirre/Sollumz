@@ -67,11 +67,13 @@ class NetworkPlayer:
         self.is_playing = False
 
     def frame_update(self):
-        self.clip_player1.phase = self.network.debug_phase
-        self.clip_player2.phase = self.network.debug_phase
-        frame1 = self.clip_player1.frame_update()
-        frame2 = self.clip_player2.frame_update()
-        frame1.blend(frame2, self.network.debug_blend_weight)
+        delta_time = 1 / bpy.context.scene.render.fps
+        # self.clip_player1.phase = self.network.debug_phase
+        # self.clip_player2.phase = self.network.debug_phase
+        self.clip_player1.rate = self.network.debug_rate
+        frame1 = self.clip_player1.update(delta_time)
+        # frame2 = self.clip_player2.update(delta_time)
+        # frame1.blend(frame2, self.network.debug_blend_weight)
         frame1.apply_to_armature_obj(self.armature_obj)
 
     def frame_changed(self, scene):

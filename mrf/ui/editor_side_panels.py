@@ -35,6 +35,7 @@ class NetworkPropertiesPanel(bpy.types.Panel):
 
         self.layout.prop(node_tree, "debug_blend_weight")
         self.layout.prop(node_tree, "debug_phase")
+        self.layout.prop(node_tree, "debug_rate")
 
 
 class AnimationTreePropertiesPanel(bpy.types.Panel):

@@ -1,5 +1,6 @@
 import bpy
 import bl_math
+import math
 from ...sollumz_properties import SollumType
 from .frame_buffer import FrameBuffer
 
@@ -12,7 +13,9 @@ class ClipPlayer:
         clip_properties = clip_obj.clip_properties
         self.clip_obj = clip_obj
         self.clip_dictionary = clip_obj.parent.parent
-        self.frame_curr = 0
+        self.duration = clip_properties.duration
+        self.time = 0.0
+        self.rate = 1.0
         self.frame_count = round(clip_properties.duration * bpy.context.scene.render.fps)
         num_bones = len(armature_obj.pose.bones)
         self.frames = [FrameBuffer(num_bones) for _ in range(self.frame_count)]
@@ -105,17 +108,20 @@ class ClipPlayer:
 
     @property
     def phase(self):
-        return self.frame_curr / (self.frame_count - 1)
+        return self.time / self.duration
 
     @phase.setter
     def phase(self, value):
-        self.frame_curr = round((self.frame_count - 1) * value)
+        self.time = self.duration * value
 
-    def frame_update(self):
-        # TODO: use time or phase to determine frame and interpolate between frames
-        if self.frame_curr >= self.frame_count:
-            self.frame_curr = 0
-
-        frame = self.frames[self.frame_curr].copy()  # TODO: may want to receive a buffer to write to instead so it can be reused
-        self.frame_curr += 1
+    def update(self, delta_time):
+        self.time += delta_time * self.rate
+        frame_curr = (self.frame_count - 1) * self.phase
+        frame_idx = math.floor(frame_curr) % self.frame_count
+        frame = self.frames[frame_idx].copy()  # TODO: may want to receive a buffer to write to instead so it can be reused
+        if frame_idx + 1 < self.frame_count:
+            # subframe interpolation
+            frame_next = self.frames[(frame_idx + 1) % self.frame_count]
+            subframe = frame_curr - math.floor(frame_curr)
+            frame.blend(frame_next, subframe)
         return frame

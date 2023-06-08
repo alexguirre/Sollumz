@@ -28,3 +28,4 @@ class NetworkTree(bpy.types.NodeTree):
 
     debug_blend_weight: bpy.props.FloatProperty(default=0.5, min=0.0, max=1.0)
     debug_phase: bpy.props.FloatProperty(default=0.5, min=0.0, max=1.0)
+    debug_rate: bpy.props.FloatProperty(default=1.0, min=0.0, max=5.0)
