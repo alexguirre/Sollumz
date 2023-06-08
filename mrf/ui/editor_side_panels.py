@@ -3,6 +3,7 @@ from ..nodes.node_tree import NetworkTree
 from ...sollumz_ui import SOLLUMZ_UL_armature_list
 from ..operators.preview_network import SOLLUMZ_OT_MOVE_NETWORK_preview_network
 from ..operators.preview_animation_tree import SOLLUMZ_OT_MOVE_NETWORK_preview_animation_tree
+from ..operators.layout_animation_tree import SOLLUMZ_OT_MOVE_NETWORK_layout_animation_tree
 
 
 class NetworkPropertiesPanel(bpy.types.Panel):
@@ -55,7 +56,7 @@ class AnimationTreePropertiesPanel(bpy.types.Panel):
         node_tree = context.space_data.edit_tree
 
         self.layout.prop(node_tree, "name")
-
+        self.layout.operator(SOLLUMZ_OT_MOVE_NETWORK_layout_animation_tree.bl_idname)
         self.layout.operator(SOLLUMZ_OT_MOVE_NETWORK_preview_animation_tree.bl_idname)
 
 
