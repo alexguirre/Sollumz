@@ -17,112 +17,160 @@ from ..cwxml.mrf import *
 #     flags_ul_index: bpy.props.IntProperty(name="Flags_UIListIndex", default=0)
 
 
+ParameterizedValueTypes = [
+    ("NONE", "None", "No value", 0),
+    ("LITERAL", "Literal", "Specific value", 1),
+    ("PARAMETER", "Parameter", "Lookup value in the network parameters", 2),
+]
+
+
+def ParameterizedValueTypeProperty(name=""):
+    return bpy.props.EnumProperty(name=name, items=ParameterizedValueTypes)
+
+
 class ParameterizedFloatProperty(bpy.types.PropertyGroup):
-    use_parameter: bpy.props.BoolProperty(name="Use Parameter", default=False)
+    type: ParameterizedValueTypeProperty(name="Type")
     value: bpy.props.FloatProperty(name="Value", default=0.0)
     parameter: bpy.props.StringProperty(name="Parameter", default="")
 
     def set(self, v: MoveParameterizedValueProperty):
         if v.value is not None:
-            self.use_parameter = False
+            self.type = "LITERAL"
             self.value = float(v.value)
         elif v.parameter:
-            self.use_parameter = True
+            self.type = "PARAMETER"
             self.parameter = v.parameter
+        else:
+            self.type = "NONE"
 
     def draw(self, name, layout):
         row = layout.row()
-        if self.use_parameter:
-            row.prop(self, 'parameter', text=name)
+        if self.type == "PARAMETER":
+            row.prop(self, "parameter", text=name)
+        elif self.type == "LITERAL":
+            row.prop(self, "value", text=name)
         else:
-            row.prop(self, 'value', text=name)
-        row.prop(self, 'use_parameter', toggle=1, icon='LINKED', icon_only=True)
+            row.label(text=name)
+        row.prop(self, "type")#, toggle=1, icon='LINKED', icon_only=True)
 
 
 class ParameterizedBoolProperty(bpy.types.PropertyGroup):
-    use_parameter: bpy.props.BoolProperty(name="Use Parameter", default=False)
+    type: ParameterizedValueTypeProperty(name="Type")
     value: bpy.props.BoolProperty(name="Value", default=False)
     parameter: bpy.props.StringProperty(name="Parameter", default="")
 
     def set(self, v: MoveParameterizedValueProperty):
         if v.value is not None:
-            self.use_parameter = False
+            self.type = "LITERAL"
             self.value = bool(v.value)
         elif v.parameter is not None:
-            self.use_parameter = True
+            self.type = "PARAMETER"
             self.parameter = v.parameter
+        else:
+            self.type = "NONE"
 
     def draw(self, name, layout):
         row = layout.row()
-        if self.use_parameter:
-            row.prop(self, 'parameter', text=name)
+        if self.type == "PARAMETER":
+            row.prop(self, "parameter", text=name)
+        elif self.type == "LITERAL":
+            row.prop(self, "value", text=name)
         else:
-            row.prop(self, 'value', text=name)
-        row.prop(self, 'use_parameter', toggle=1, icon='LINKED', icon_only=True)
+            row.label(text=name)
+        row.prop(self, "type")#, , toggle=1, icon='LINKED', icon_only=True)
 
 
 class ParameterizedAssetProperty(bpy.types.PropertyGroup):
-    use_parameter: bpy.props.BoolProperty(name="Use Parameter", default=False)
+    type: ParameterizedValueTypeProperty(name="Type")
     dictionary_name: bpy.props.StringProperty(name="Dictionary", default="")
     name: bpy.props.StringProperty(name="Name", default="")
     parameter: bpy.props.StringProperty(name="Parameter", default="")
 
     def set(self, v: MoveParameterizedAssetProperty):
         if v.dictionary_name is not None and v.name is not None:
-            self.use_parameter = False
+            self.type = "LITERAL"
             self.dictionary_name = v.dictionary_name
             self.name = v.name
         elif v.parameter is not None:
-            self.use_parameter = True
+            self.type = "PARAMETER"
             self.parameter = v.parameter
+        else:
+            self.type = "NONE"
 
     def draw(self, name, layout):
-        if self.use_parameter:
-            row = layout.row()
-            row.prop(self, 'parameter', text=name)
-            row.prop(self, 'use_parameter', toggle=1, icon='LINKED', icon_only=True)
-        else:
-            row = layout.row()
+        row = layout.row()
+        if self.type == "PARAMETER":
+            row.prop(self, "parameter", text=name)
+            row.prop(self, "type")#, , toggle=1, icon='LINKED', icon_only=True)
+        elif self.type == "LITERAL":
             row.label(text=name)
-            row.prop(self, 'use_parameter', toggle=1, icon='LINKED', icon_only=True)
-            layout.prop(self, 'dictionary_name', text="Dictionary")
-            layout.prop(self, 'name', text="Name")
+            row.prop(self, "type")#, , toggle=1, icon='LINKED', icon_only=True)
+            layout.prop(self, "dictionary_name")
+            layout.prop(self, "name")
+        else:
+            row.label(text=name)
+            row.prop(self, "type")# , , toggle=1, icon='LINKED', icon_only=True)
+
+
+ParameterizedClipContainerTypes = [
+    ("VariableClipSet", "VariableClipSet", "VariableClipSet", 0),
+    ("ClipSet", "ClipSet", "ClipSet", 1),
+    ("ClipDictionary", "ClipDictionary", "ClipDictionary", 2),
+    ("Unk3", "Unk3", "Unk3", 3),
+]
+
+
+def ParameterizedClipContainerTypeProperty(name=""):
+    return bpy.props.EnumProperty(name=name, items=ParameterizedClipContainerTypes)
 
 
 class ParameterizedClipProperty(bpy.types.PropertyGroup):
-    use_parameter: bpy.props.BoolProperty(name="Use Parameter", default=False)
-    container_type: bpy.props.EnumProperty(name="Container Type", items=[
-        ("VariableClipSet", "VariableClipSet", "VariableClipSet", 0),
-        ("ClipSet", "ClipSet", "ClipSet", 1),
-        ("ClipDictionary", "ClipDictionary", "ClipDictionary", 2),
-        ("Unk3", "Unk3", "Unk3", 3),
-    ])
+    type: ParameterizedValueTypeProperty(name="Type")
+    container_type: ParameterizedClipContainerTypeProperty(name="Container Type")
     container_name: bpy.props.StringProperty(name="Container", default="")
     name: bpy.props.StringProperty(name="Name", default="")
     parameter: bpy.props.StringProperty(name="Parameter", default="")
 
     def set(self, v: MoveParameterizedClipProperty):
         if v.container_type is not None and v.container_name is not None and v.name is not None:
-            self.use_parameter = False
+            self.type = "LITERAL"
             self.container_type = v.container_type
             self.container_name = v.container_name
             self.name = v.name
         elif v.parameter is not None:
-            self.use_parameter = True
+            self.type = "PARAMETER"
             self.parameter = v.parameter
+        else:
+            self.type = "NONE"
 
     def draw(self, name, layout):
-        if self.use_parameter:
-            row = layout.row()
-            row.prop(self, 'parameter', text=name)
-            row.prop(self, 'use_parameter', toggle=1, icon='LINKED', icon_only=True)
-        else:
-            row = layout.row()
+        row = layout.row()
+        if self.type == "PARAMETER":
+            row.prop(self, "parameter", text=name)
+            row.prop(self, "type")#, toggle=1, icon='LINKED', icon_only=True)
+        elif self.type == "LITERAL":
             row.label(text=name)
-            row.prop(self, 'use_parameter', toggle=1, icon='LINKED', icon_only=True)
-            layout.prop(self, 'container_type', text="Container Type")
-            layout.prop(self, 'container_name', text="Container")
-            layout.prop(self, 'name', text="Name")
+            row.prop(self, "type")#, toggle=1, icon='LINKED', icon_only=True)
+            layout.prop(self, "container_type")
+            layout.prop(self, "container_name")
+            layout.prop(self, "name")
+        else:
+            row.label(text=name)
+            row.prop(self, "type")# , , toggle=1, icon='LINKED', icon_only=True)
+
+
+#         None = 0, // influence affected by weight (at least in NodeBlend case)
+#         Zero = 1, // influence = 0.0
+#         One  = 2, // influence = 1.0
+InfluenceOverrides = [
+    ("None", "None", "None", 0),
+    ("Zero", "Zero", "Zero", 1),
+    ("One", "One", "One", 2),
+]
+
+
+def InfluenceOverrideProperty(name=""):
+    return bpy.props.EnumProperty(name=name, items=InfluenceOverrides)
 
 
 WeightModifierTypes = [
@@ -133,11 +181,29 @@ WeightModifierTypes = [
 ]
 
 
+def WeightModifierTypeProperty(name=""):
+    return bpy.props.EnumProperty(name=name, items=WeightModifierTypes)
+
+
 SynchronizerTypes = [
     ("Phase", "Phase", "Phase", 0),
     ("Tag", "Tag", "Tag", 1),
     ("None", "None", "None", 2),
 ]
+
+
+def SynchronizerTypeProperty(name=""):
+    return bpy.props.EnumProperty(name=name, items=SynchronizerTypes)
+
+
+class ATNodeNChildProperties(bpy.types.PropertyGroup):
+    weight: bpy.props.PointerProperty(name="Weight", type=ParameterizedFloatProperty)
+    frame_filter: bpy.props.PointerProperty(name="Frame Filter", type=ParameterizedAssetProperty)
+
+    def set(self, v: MoveNodeNChildren.Child):
+        self.weight.set(v.weight)
+        self.frame_filter.set(v.frame_filter)
+
 
 SMConditionTypes = [
     ("ParameterInsideRange", "ParameterInsideRange", "ParameterInsideRange", 0),
@@ -214,8 +280,8 @@ class SMTransitionProperties(bpy.types.PropertyGroup):
     duration: bpy.props.FloatProperty(name="Duration", default=0.0)
     duration_parameter_name: bpy.props.StringProperty(name="Duration Parameter Name", default="")
     progress_parameter_name: bpy.props.StringProperty(name="Progress Parameter Name", default="")
-    blend_modifier: bpy.props.EnumProperty(name="Blend Modifier", items=WeightModifierTypes)
-    synchronizer_type: bpy.props.EnumProperty(name="Synchronizer Type", items=SynchronizerTypes)
+    blend_modifier: WeightModifierTypeProperty(name="Blend Modifier")
+    synchronizer_type: SynchronizerTypeProperty(name="Synchronizer Type")
     synchronizer_tag_flags: bpy.props.StringProperty(name="Synchronizer Tag Flags", default="")
     frame_filter: bpy.props.PointerProperty(name='Frame Filter', type=ParameterizedAssetProperty)
     unk_flag2_detach_update_observers: bpy.props.BoolProperty(name="Unk Flag 2 Detach Update Observers", default=False)
@@ -228,18 +294,6 @@ class SMTransitionProperties(bpy.types.PropertyGroup):
     ui_hovered: bpy.props.BoolProperty(default=False, update=lambda s, c: c.region.tag_redraw())
     ui_active: bpy.props.BoolProperty(default=False, update=lambda s, c: c.region.tag_redraw())
     ui_active_condition_index: bpy.props.IntProperty()
-
-    # self.duration = ValueProperty("Duration", 0.0)
-    # self.duration_parameter_name = TextPropertyRequired("DurationParameterName")
-    # self.progress_parameter_name = TextPropertyRequired("ProgressParameterName")
-    # self.blend_modifier = TextPropertyRequired("BlendModifier")
-    # self.synchronizer_type = TextPropertyRequired("SynchronizerType")
-    # self.synchronizer_tag_flags = TextProperty("SynchronizerTagFlags")
-    # self.frame_filter = MoveParameterizedAssetProperty("FrameFilter")  # note: cannot actually use parameters here
-    # self.unk_flag2_detach_update_observers = ValueProperty("UnkFlag2_DetachUpdateObservers", False)
-    # self.unk_flag18 = ValueProperty("UnkFlag18", False)
-    # self.unk_flag19 = ValueProperty("UnkFlag19", False)
-    # self.conditions = MoveConditionsList()
 
     def set(self, v: MoveStateTransition):
         self.duration = v.duration

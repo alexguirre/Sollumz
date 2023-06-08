@@ -1,7 +1,7 @@
 import bpy
 from .node_tree import NetworkTree
 from .node_socket import *
-from ..properties import ParameterizedFloatProperty, ParameterizedBoolProperty, ParameterizedAssetProperty, ParameterizedClipProperty, SMTransitionProperties
+from ..properties import *
 from ...cwxml.mrf import *
 from ...sollumz_helper import SOLLUMZ_OT_base
 
@@ -158,16 +158,46 @@ class ATNodeBlend(ATNode2x1):
     bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_ATNodeBlend'
     bl_label = 'Blend'
 
+    child0_influence_override: InfluenceOverrideProperty(name="Influence Override A")
+    child1_influence_override: InfluenceOverrideProperty(name="Influence Override B")
     weight: bpy.props.PointerProperty(name='Weight', type=ParameterizedFloatProperty)
     frame_filter: bpy.props.PointerProperty(name='Frame Filter', type=ParameterizedAssetProperty)
+    synchronizer_type: SynchronizerTypeProperty(name="Synchronizer Type")
+    synchronizer_tag_flags: bpy.props.StringProperty(name="Synchronizer Tag Flags", default="")
+    merge_blend: bpy.props.BoolProperty(name="Merge Blend", default=False)
+    unk_flag6: bpy.props.BoolProperty(name="Unk Flag 6", default=False)
+    unk_flag7: bpy.props.IntProperty(name="Unk Flag 7", default=0)
+    unk_flag21: bpy.props.IntProperty(name="Unk Flag 21", default=0)
+    unk_flag23: bpy.props.IntProperty(name="Unk Flag 23", default=0)
+    unk_flag25: bpy.props.IntProperty(name="Unk Flag 25", default=0)
 
     def init_from_xml(self, node_xml: MoveNodeBlend):
+        self.child0_influence_override = node_xml.child0_influence_override
+        self.child1_influence_override = node_xml.child1_influence_override
         self.weight.set(node_xml.weight)
         self.frame_filter.set(node_xml.frame_filter)
+        self.synchronizer_type = node_xml.synchronizer_type or "None"
+        self.synchronizer_tag_flags = node_xml.synchronizer_tag_flags
+        self.unk_flag6 = node_xml.unk_flag6
+        self.unk_flag7 = node_xml.unk_flag7
+        self.unk_flag21 = node_xml.unk_flag21
+        self.unk_flag23 = node_xml.unk_flag23
+        self.unk_flag25 = node_xml.unk_flag25
 
     def draw_buttons(self, context, layout):
+        layout.prop(self, "child0_influence_override")
+        layout.prop(self, "child1_influence_override")
         self.weight.draw("Weight", layout)
         self.frame_filter.draw("Frame Filter", layout)
+        layout.prop(self, "synchronizer_type")
+        if self.synchronizer_type == "Tag":
+            layout.prop(self, "synchronizer_tag_flags")
+        layout.prop(self, "merge_blend")
+        layout.prop(self, "unk_flag6")
+        layout.prop(self, "unk_flag7")
+        layout.prop(self, "unk_flag21")
+        layout.prop(self, "unk_flag23")
+        layout.prop(self, "unk_flag25")
 
 
 class ATNodeAddSubtract(ATNode2x1):
@@ -237,8 +267,32 @@ class ATNodeBlendN(ATNodeNx1):
     bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_ATNodeBlendN'
     bl_label = 'Blend N'
 
+    frame_filter: bpy.props.PointerProperty(name='Frame Filter', type=ParameterizedAssetProperty)
+    synchronizer_type: SynchronizerTypeProperty(name="Synchronizer Type")
+    synchronizer_tag_flags: bpy.props.StringProperty(name="Synchronizer Tag Flags", default="")
+    zero_destination: bpy.props.BoolProperty(name="Zero Destination", default=False)
+    children_properties: bpy.props.CollectionProperty(name="Children Properties", type=ATNodeNChildProperties)
+
     def init_from_xml(self, node_xml: MoveNodeBlendN):
-        pass
+        self.frame_filter.set(node_xml.frame_filter)
+        self.synchronizer_type = node_xml.synchronizer_type or "None"
+        self.synchronizer_tag_flags = node_xml.synchronizer_tag_flags
+        self.zero_destination = node_xml.zero_destination
+        self.children_properties.clear()
+        for c in node_xml.children:
+            self.children_properties.add().set(c)
+
+    def draw_buttons(self, context, layout):
+        self.frame_filter.draw("Frame Filter", layout)
+        layout.prop(self, "synchronizer_type")
+        if self.synchronizer_type == "Tag":
+            layout.prop(self, "synchronizer_tag_flags")
+        layout.prop(self, "zero_destination")
+        # layout.label(text="Children Properties")
+        # for c in self.children_properties:
+        #     box = layout.box()
+        #     c.weight.draw("Weight", box)
+        #     c.frame_filter.draw("Frame Filter", box)
 
 
 class ATNodeClip(ATNode0x1):
@@ -326,8 +380,32 @@ class ATNodeAddN(ATNodeNx1):
     bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_ATNodeAddN'
     bl_label = 'Add N'
 
+    frame_filter: bpy.props.PointerProperty(name='Frame Filter', type=ParameterizedAssetProperty)
+    synchronizer_type: SynchronizerTypeProperty(name="Synchronizer Type")
+    synchronizer_tag_flags: bpy.props.StringProperty(name="Synchronizer Tag Flags", default="")
+    zero_destination: bpy.props.BoolProperty(name="Zero Destination", default=False)
+    children_properties: bpy.props.CollectionProperty(name="Children Properties", type=ATNodeNChildProperties)
+
     def init_from_xml(self, node_xml: MoveNodeAddN):
-        pass
+        self.frame_filter.set(node_xml.frame_filter)
+        self.synchronizer_type = node_xml.synchronizer_type or "None"
+        self.synchronizer_tag_flags = node_xml.synchronizer_tag_flags
+        self.zero_destination = node_xml.zero_destination
+        self.children_properties.clear()
+        for c in node_xml.children:
+            self.children_properties.add().set(c)
+
+    def draw_buttons(self, context, layout):
+        self.frame_filter.draw("Frame Filter", layout)
+        layout.prop(self, "synchronizer_type")
+        if self.synchronizer_type == "Tag":
+            layout.prop(self, "synchronizer_tag_flags")
+        layout.prop(self, "zero_destination")
+        # layout.label(text="Children Properties")
+        # for c in self.children_properties:
+        #     box = layout.box()
+        #     c.weight.draw("Weight", box)
+        #     c.frame_filter.draw("Frame Filter", box)
 
 
 class ATNodeIdentity(ATNode0x1):
@@ -358,8 +436,32 @@ class ATNodeMergeN(ATNodeNx1):
     bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_ATNodeMergeN'
     bl_label = 'Merge N'
 
+    frame_filter: bpy.props.PointerProperty(name='Frame Filter', type=ParameterizedAssetProperty)
+    synchronizer_type: SynchronizerTypeProperty(name="Synchronizer Type")
+    synchronizer_tag_flags: bpy.props.StringProperty(name="Synchronizer Tag Flags", default="")
+    zero_destination: bpy.props.BoolProperty(name="Zero Destination", default=False)
+    children_properties: bpy.props.CollectionProperty(name="Children Properties", type=ATNodeNChildProperties)
+
     def init_from_xml(self, node_xml: MoveNodeMergeN):
-        pass
+        self.frame_filter.set(node_xml.frame_filter)
+        self.synchronizer_type = node_xml.synchronizer_type or "None"
+        self.synchronizer_tag_flags = node_xml.synchronizer_tag_flags
+        self.zero_destination = node_xml.zero_destination
+        self.children_properties.clear()
+        for c in node_xml.children:
+            self.children_properties.add().set(c)
+
+    def draw_buttons(self, context, layout):
+        self.frame_filter.draw("Frame Filter", layout)
+        layout.prop(self, "synchronizer_type")
+        if self.synchronizer_type == "Tag":
+            layout.prop(self, "synchronizer_tag_flags")
+        layout.prop(self, "zero_destination")
+        # layout.label(text="Children Properties")
+        # for c in self.children_properties:
+        #     box = layout.box()
+        #     c.weight.draw("Weight", box)
+        #     c.frame_filter.draw("Frame Filter", box)
 
 
 class ATNodeInvalid(ATNode0x1):
