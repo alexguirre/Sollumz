@@ -1,4 +1,5 @@
 import bpy
+from ..properties import *
 
 NetworkTreeTypes = [
     ("ROOT", "Root", "Root tree", 0),
@@ -29,3 +30,25 @@ class NetworkTree(bpy.types.NodeTree):
     debug_blend_weight: bpy.props.FloatProperty(default=0.5, min=0.0, max=1.0)
     debug_phase: bpy.props.FloatProperty(default=0.5, min=0.0, max=1.0)
     debug_rate: bpy.props.FloatProperty(default=1.0, min=0.0, max=5.0)
+
+    network_parameters: bpy.props.PointerProperty(type=NetworkParameters)
+    ui_network_param_float_new_name: bpy.props.StringProperty(name="New float MoVE Network parameter...", default="")
+    ui_network_param_bool_new_name: bpy.props.StringProperty(name="New bool MoVE Network parameter...", default="")
+    ui_network_param_clip_new_name: bpy.props.StringProperty(name="New clip MoVE Network parameter...", default="")
+    ui_network_param_asset_new_name: bpy.props.StringProperty(name="New asset MoVE Network parameter...", default="")
+
+    def try_add_parameter(self, parameterized_value):
+        print("try_add_parameter %s" % parameterized_value.parameter)
+        if parameterized_value.type != "PARAMETER":
+            return
+
+        if isinstance(parameterized_value, ParameterizedFloatProperty):
+            self.network_parameters.try_add_float(parameterized_value.parameter)
+        elif isinstance(parameterized_value, ParameterizedBoolProperty):
+            self.network_parameters.try_add_bool(parameterized_value.parameter)
+        elif isinstance(parameterized_value, ParameterizedClipProperty):
+            self.network_parameters.try_add_clip(parameterized_value.parameter)
+        elif isinstance(parameterized_value, ParameterizedAssetProperty):
+            self.network_parameters.try_add_asset(parameterized_value.parameter)
+        else:
+            raise Exception("Unknown parameterized value type.")

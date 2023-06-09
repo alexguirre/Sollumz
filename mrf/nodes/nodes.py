@@ -33,6 +33,9 @@ class AnimationTreeNodeBase(bpy.types.Node):
     def init_from_xml(self, node_xml):
         raise NotImplementedError
 
+    def add_required_parameters_to_network(self, network):
+        pass
+
     def create_input(self, socket_name, socket_label):
         if self.inputs.get(socket_name):
             return None
@@ -59,6 +62,9 @@ class AnimationTreeNodeBase(bpy.types.Node):
         if output:
             self.outputs.remove(output)
 
+    def exec_update(self, delta_time):
+        pass
+
 
 class ATNodeOutputAnimation(AnimationTreeNodeBase):
     bl_idname = 'SOLLUMZ_NT_MOVE_NETWORK_ATNodeOutputAnimation'
@@ -69,6 +75,9 @@ class ATNodeOutputAnimation(AnimationTreeNodeBase):
 
     def init_from_xml(self, node_xml):
         raise Exception("NodeOutputAnimation cannot be initialized from XML")
+
+    def exec_update(self, delta_time):
+        pass
 
 
 # 0 inputs, 1 output
@@ -184,11 +193,15 @@ class ATNodeBlend(ATNode2x1):
         self.unk_flag23 = node_xml.unk_flag23
         self.unk_flag25 = node_xml.unk_flag25
 
+    def add_required_parameters_to_network(self, network):
+        network.try_add_parameter(self.weight)
+        network.try_add_parameter(self.frame_filter)
+
     def draw_buttons(self, context, layout):
         layout.prop(self, "child0_influence_override")
         layout.prop(self, "child1_influence_override")
-        self.weight.draw("Weight", layout)
-        self.frame_filter.draw("Frame Filter", layout)
+        self.weight.draw("Weight", context, layout)
+        self.frame_filter.draw("Frame Filter", context, layout)
         layout.prop(self, "synchronizer_type")
         if self.synchronizer_type == "Tag":
             layout.prop(self, "synchronizer_tag_flags")
@@ -211,9 +224,13 @@ class ATNodeAddSubtract(ATNode2x1):
         self.weight.set(node_xml.weight)
         self.frame_filter.set(node_xml.frame_filter)
 
+    def add_required_parameters_to_network(self, network):
+        network.try_add_parameter(self.weight)
+        network.try_add_parameter(self.frame_filter)
+
     def draw_buttons(self, context, layout):
-        self.weight.draw("Weight", layout)
-        self.frame_filter.draw("Frame Filter", layout)
+        self.weight.draw("Weight", context, layout)
+        self.frame_filter.draw("Frame Filter", context, layout)
 
 
 class ATNodeFilter(ATNode1x1):
@@ -225,8 +242,11 @@ class ATNodeFilter(ATNode1x1):
     def init_from_xml(self, node_xml: MoveNodeFilter):
         self.frame_filter.set(node_xml.frame_filter)
 
+    def add_required_parameters_to_network(self, network):
+        network.try_add_parameter(self.frame_filter)
+
     def draw_buttons(self, context, layout):
-        self.frame_filter.draw("Frame Filter", layout)
+        self.frame_filter.draw("Frame Filter", context, layout)
 
 
 class ATNodeMirror(ATNode1x1):
@@ -238,8 +258,11 @@ class ATNodeMirror(ATNode1x1):
     def init_from_xml(self, node_xml: MoveNodeMirror):
         self.frame_filter.set(node_xml.frame_filter)
 
+    def add_required_parameters_to_network(self, network):
+        network.try_add_parameter(self.frame_filter)
+
     def draw_buttons(self, context, layout):
-        self.frame_filter.draw("Frame Filter", layout)
+        self.frame_filter.draw("Frame Filter", context, layout)
 
 
 class ATNodeFrame(ATNode0x1):
@@ -282,8 +305,11 @@ class ATNodeBlendN(ATNodeNx1):
         for c in node_xml.children:
             self.children_properties.add().set(c)
 
+    def add_required_parameters_to_network(self, network):
+        network.try_add_parameter(self.frame_filter)
+
     def draw_buttons(self, context, layout):
-        self.frame_filter.draw("Frame Filter", layout)
+        self.frame_filter.draw("Frame Filter", context, layout)
         layout.prop(self, "synchronizer_type")
         if self.synchronizer_type == "Tag":
             layout.prop(self, "synchronizer_tag_flags")
@@ -312,12 +338,19 @@ class ATNodeClip(ATNode0x1):
         self.delta.set(node_xml.delta)
         self.looped.set(node_xml.looped)
 
+    def add_required_parameters_to_network(self, network):
+        network.try_add_parameter(self.clip)
+        network.try_add_parameter(self.phase)
+        network.try_add_parameter(self.rate)
+        network.try_add_parameter(self.delta)
+        network.try_add_parameter(self.looped)
+
     def draw_buttons(self, context, layout):
-        self.clip.draw("Clip", layout)
-        self.phase.draw("Phase", layout)
-        self.rate.draw("Rate", layout)
-        self.delta.draw("Delta", layout)
-        self.looped.draw("Looped", layout)
+        self.clip.draw("Clip", context, layout)
+        self.phase.draw("Phase", context, layout)
+        self.rate.draw("Rate", context, layout)
+        self.delta.draw("Delta", context, layout)
+        self.looped.draw("Looped", context, layout)
         # self.unk_flag10
 
 
@@ -330,8 +363,11 @@ class ATNodeExtrapolate(ATNode1x1):
     def init_from_xml(self, node_xml: MoveNodeExtrapolate):
         self.damping.set(node_xml.damping)
 
+    def add_required_parameters_to_network(self, network):
+        network.try_add_parameter(self.damping)
+
     def draw_buttons(self, context, layout):
-        self.damping.draw("Damping", layout)
+        self.damping.draw("Damping", context, layout)
 
 
 class ATNodeExpression(ATNode1x1):
@@ -345,9 +381,13 @@ class ATNodeExpression(ATNode1x1):
         self.weight.set(node_xml.weight)
         self.expression.set(node_xml.expression)
 
+    def add_required_parameters_to_network(self, network):
+        network.try_add_parameter(self.weight)
+        network.try_add_parameter(self.expression)
+
     def draw_buttons(self, context, layout):
-        self.weight.draw("Weight", layout)
-        self.expression.draw("Expression", layout)
+        self.weight.draw("Weight", context, layout)
+        self.expression.draw("Expression", context, layout)
 
 
 class ATNodeCapture(ATNode1x1):
@@ -395,8 +435,11 @@ class ATNodeAddN(ATNodeNx1):
         for c in node_xml.children:
             self.children_properties.add().set(c)
 
+    def add_required_parameters_to_network(self, network):
+        network.try_add_parameter(self.frame_filter)
+
     def draw_buttons(self, context, layout):
-        self.frame_filter.draw("Frame Filter", layout)
+        self.frame_filter.draw("Frame Filter", context, layout)
         layout.prop(self, "synchronizer_type")
         if self.synchronizer_type == "Tag":
             layout.prop(self, "synchronizer_tag_flags")
@@ -451,8 +494,11 @@ class ATNodeMergeN(ATNodeNx1):
         for c in node_xml.children:
             self.children_properties.add().set(c)
 
+    def add_required_parameters_to_network(self, network):
+        network.try_add_parameter(self.frame_filter)
+
     def draw_buttons(self, context, layout):
-        self.frame_filter.draw("Frame Filter", layout)
+        self.frame_filter.draw("Frame Filter", context, layout)
         layout.prop(self, "synchronizer_type")
         if self.synchronizer_type == "Tag":
             layout.prop(self, "synchronizer_tag_flags")

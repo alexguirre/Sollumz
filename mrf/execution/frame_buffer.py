@@ -19,7 +19,6 @@ def quaternion_dot(a, b):  # return new array
 def quaternion_slerp(a, b, t):  # return in q1
     # https://github.com/blender/blender/blob/c89461a2bc844a459f76a7fb1808739d44ba378f/source/blender/blenlib/intern/math_rotation.c#L876
     cosom = quaternion_dot(a, b)
-    print("len(cosom) = %s   %s" % (len(cosom), cosom))
 
     neg_mask = cosom < 0.0
     cosom[neg_mask] = -cosom[neg_mask]
@@ -32,10 +31,6 @@ def quaternion_slerp(a, b, t):  # return in q1
 
     omega = np.arccos(cosom[in_range_mask])
     sinom = np.sin(omega)
-    print("len(omega) = %s" % len(omega))
-    print("len(sinom) = %s" % len(sinom))
-    print("len(...) = %s" % len(np.sin((1.0 - t) * omega) / sinom))
-    print("len(w[in_range_mask, 0]) = %s" % len(w[in_range_mask, 0]))
     w[in_range_mask, 0] = np.sin((1.0 - t) * omega) / sinom
     w[in_range_mask, 1] = np.sin(t * omega) / sinom
 

@@ -21,3 +21,5 @@ class SOLLUMZ_OT_MOVE_NETWORK_layout_animation_tree(SOLLUMZ_OT_base, bpy.types.O
     def run(self, context):
         anim_tree = context.space_data.edit_tree
         layout_animation_tree(anim_tree)
+
+        return True

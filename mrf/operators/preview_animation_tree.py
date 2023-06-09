@@ -25,7 +25,7 @@ class SOLLUMZ_OT_MOVE_NETWORK_preview_animation_tree(SOLLUMZ_OT_base, bpy.types.
 
         armature = bpy.data.armatures[root_tree.selected_armature]
         if armature is None:
-            return {"FINISHED"}
+            return False
 
         if getattr(root_tree, "network_player", None) is None:
             root_tree.network_player = NetworkPlayer(root_tree)
@@ -34,6 +34,8 @@ class SOLLUMZ_OT_MOVE_NETWORK_preview_animation_tree(SOLLUMZ_OT_base, bpy.types.
         if player.is_playing:
             player.stop()
         else:
-            player.set_animation_tree_to_preview(anim_tree)
             player.set_armature(armature)
+            player.set_animation_tree_to_preview(anim_tree)
             player.play()
+
+        return True

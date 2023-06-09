@@ -1,5 +1,6 @@
 import bpy
 from ..cwxml.mrf import *
+from ..sollumz_properties import SollumType
 
 
 # class MoveNetworkBitProperties(bpy.types.PropertyGroup):
@@ -18,9 +19,9 @@ from ..cwxml.mrf import *
 
 
 ParameterizedValueTypes = [
-    ("NONE", "None", "No value", 0),
-    ("LITERAL", "Literal", "Specific value", 1),
-    ("PARAMETER", "Parameter", "Lookup value in the network parameters", 2),
+    ("NONE", "None", "No value", "REMOVE", 0),
+    ("LITERAL", "Literal", "Specific value", "UNLINKED", 1),
+    ("PARAMETER", "Parameter", "Lookup value in the network parameters", "LINKED", 2),
 ]
 
 
@@ -43,15 +44,17 @@ class ParameterizedFloatProperty(bpy.types.PropertyGroup):
         else:
             self.type = "NONE"
 
-    def draw(self, name, layout):
+    def draw(self, name, context, layout):
+        network = context.space_data.edit_tree
+        network = network.network_root or network
         row = layout.row()
         if self.type == "PARAMETER":
-            row.prop(self, "parameter", text=name)
+            row.prop_search(self, "parameter", network.network_parameters, "parameters_float", text=name)
         elif self.type == "LITERAL":
             row.prop(self, "value", text=name)
         else:
             row.label(text=name)
-        row.prop(self, "type")#, toggle=1, icon='LINKED', icon_only=True)
+        row.prop(self, "type", text="", icon_only=True, expand=True)
 
 
 class ParameterizedBoolProperty(bpy.types.PropertyGroup):
@@ -69,15 +72,17 @@ class ParameterizedBoolProperty(bpy.types.PropertyGroup):
         else:
             self.type = "NONE"
 
-    def draw(self, name, layout):
+    def draw(self, name, context, layout):
+        network = context.space_data.edit_tree
+        network = network.network_root or network
         row = layout.row()
         if self.type == "PARAMETER":
-            row.prop(self, "parameter", text=name)
+            row.prop_search(self, "parameter", network.network_parameters, "parameters_bool", text=name)
         elif self.type == "LITERAL":
             row.prop(self, "value", text=name)
         else:
             row.label(text=name)
-        row.prop(self, "type")#, , toggle=1, icon='LINKED', icon_only=True)
+        row.prop(self, "type", text="", icon_only=True, expand=True)
 
 
 class ParameterizedAssetProperty(bpy.types.PropertyGroup):
@@ -97,19 +102,21 @@ class ParameterizedAssetProperty(bpy.types.PropertyGroup):
         else:
             self.type = "NONE"
 
-    def draw(self, name, layout):
+    def draw(self, name, context, layout):
+        network = context.space_data.edit_tree
+        network = network.network_root or network
         row = layout.row()
         if self.type == "PARAMETER":
-            row.prop(self, "parameter", text=name)
-            row.prop(self, "type")#, , toggle=1, icon='LINKED', icon_only=True)
+            row.prop_search(self, "parameter", network.network_parameters, "parameters_asset", text=name)
+            row.prop(self, "type", text="", icon_only=True, expand=True)
         elif self.type == "LITERAL":
             row.label(text=name)
-            row.prop(self, "type")#, , toggle=1, icon='LINKED', icon_only=True)
+            row.prop(self, "type", text="", icon_only=True, expand=True)
             layout.prop(self, "dictionary_name")
             layout.prop(self, "name")
         else:
             row.label(text=name)
-            row.prop(self, "type")# , , toggle=1, icon='LINKED', icon_only=True)
+            row.prop(self, "type", text="", icon_only=True, expand=True)
 
 
 ParameterizedClipContainerTypes = [
@@ -143,25 +150,24 @@ class ParameterizedClipProperty(bpy.types.PropertyGroup):
         else:
             self.type = "NONE"
 
-    def draw(self, name, layout):
+    def draw(self, name, context, layout):
+        network = context.space_data.edit_tree
+        network = network.network_root or network
         row = layout.row()
         if self.type == "PARAMETER":
-            row.prop(self, "parameter", text=name)
-            row.prop(self, "type")#, toggle=1, icon='LINKED', icon_only=True)
+            row.prop_search(self, "parameter", network.network_parameters, "parameters_clip", text=name)
+            row.prop(self, "type", text="", icon_only=True, expand=True)
         elif self.type == "LITERAL":
             row.label(text=name)
-            row.prop(self, "type")#, toggle=1, icon='LINKED', icon_only=True)
+            row.prop(self, "type", text="", icon_only=True, expand=True)
             layout.prop(self, "container_type")
             layout.prop(self, "container_name")
             layout.prop(self, "name")
         else:
             row.label(text=name)
-            row.prop(self, "type")# , , toggle=1, icon='LINKED', icon_only=True)
+            row.prop(self, "type", text="", icon_only=True, expand=True)
 
 
-#         None = 0, // influence affected by weight (at least in NodeBlend case)
-#         Zero = 1, // influence = 0.0
-#         One  = 2, // influence = 1.0
 InfluenceOverrides = [
     ("None", "None", "None", 0),
     ("Zero", "Zero", "Zero", 1),
@@ -186,9 +192,9 @@ def WeightModifierTypeProperty(name=""):
 
 
 SynchronizerTypes = [
-    ("Phase", "Phase", "Phase", 0),
-    ("Tag", "Tag", "Tag", 1),
-    ("None", "None", "None", 2),
+    ("None", "None", "None", 0),
+    ("Phase", "Phase", "Phase", 1),
+    ("Tag", "Tag", "Tag", 2),
 ]
 
 
@@ -309,6 +315,67 @@ class SMTransitionProperties(bpy.types.PropertyGroup):
         self.conditions.clear()
         for c in v.conditions:
             self.conditions.add().set(c)
+
+
+class NetworkParameterFloat(bpy.types.PropertyGroup):
+    name: bpy.props.StringProperty(name="Name", default="")
+    value: bpy.props.FloatProperty(name="Value", default=0.0)
+
+
+class NetworkParameterBool(bpy.types.PropertyGroup):
+    name: bpy.props.StringProperty(name="Name", default="")
+    value: bpy.props.BoolProperty(name="Value", default=False)
+
+
+class NetworkParameterClip(bpy.types.PropertyGroup):
+    name: bpy.props.StringProperty(name="Name", default="")
+    value: bpy.props.PointerProperty(name="Value", type=bpy.types.Object, poll=lambda s, o: o.sollum_type == SollumType.CLIP)
+
+
+class NetworkParameterAsset(bpy.types.PropertyGroup):  # TODO: may need more specific type (expressions, frame filters, etc.)
+    name: bpy.props.StringProperty(name="Name", default="")
+    value: bpy.props.StringProperty(name="Value", default="")
+
+
+class NetworkParameters(bpy.types.PropertyGroup):
+    parameters_float: bpy.props.CollectionProperty(name="Float Parameters", type=NetworkParameterFloat)
+    parameters_bool: bpy.props.CollectionProperty(name="Bool Parameters", type=NetworkParameterBool)
+    parameters_clip: bpy.props.CollectionProperty(name="Clip Parameters", type=NetworkParameterClip)
+    parameters_asset: bpy.props.CollectionProperty(name="Asset Parameters", type=NetworkParameterAsset)
+
+    def exists(self, parameter_name):
+        for collection in (self.parameters_float, self.parameters_bool, self.parameters_clip, self.parameters_asset):
+            for p in collection:
+                if p.name == parameter_name:
+                    return True
+        return False
+
+    def remove(self, parameter_name):
+        for collection in (self.parameters_float, self.parameters_bool, self.parameters_clip, self.parameters_asset):
+            for i, p in enumerate(collection):
+                if p.name == parameter_name:
+                    collection.remove(i)
+                    return
+
+    def try_add_float(self, parameter_name):
+        if self.exists(parameter_name):
+            return
+        self.parameters_float.add().name = parameter_name
+
+    def try_add_bool(self, parameter_name):
+        if self.exists(parameter_name):
+            return
+        self.parameters_bool.add().name = parameter_name
+
+    def try_add_clip(self, parameter_name):
+        if self.exists(parameter_name):
+            return
+        self.parameters_clip.add().name = parameter_name
+
+    def try_add_asset(self, parameter_name):
+        if self.exists(parameter_name):
+            return
+        self.parameters_asset.add().name = parameter_name
 
 
 def register():

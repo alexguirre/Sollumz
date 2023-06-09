@@ -4,6 +4,8 @@ from ...sollumz_ui import SOLLUMZ_UL_armature_list
 from ..operators.preview_network import SOLLUMZ_OT_MOVE_NETWORK_preview_network
 from ..operators.preview_animation_tree import SOLLUMZ_OT_MOVE_NETWORK_preview_animation_tree
 from ..operators.layout_animation_tree import SOLLUMZ_OT_MOVE_NETWORK_layout_animation_tree
+from ..operators.delete_network_parameter import SOLLUMZ_OT_MOVE_NETWORK_delete_network_parameter
+from ..operators.add_network_parameter import SOLLUMZ_OT_MOVE_NETWORK_add_network_parameter
 
 
 class NetworkPropertiesPanel(bpy.types.Panel):
@@ -26,16 +28,59 @@ class NetworkPropertiesPanel(bpy.types.Panel):
 
         self.layout.prop(node_tree, "name")
 
-        armature_list_box = self.layout.box()
-        armature_list_box.label(text="Target skeleton")
-        armature_list_box.template_list(SOLLUMZ_UL_armature_list.bl_idname, "",
-                                        bpy.data, "armatures", node_tree, "selected_armature")
-
         self.layout.operator(SOLLUMZ_OT_MOVE_NETWORK_preview_network.bl_idname)
 
-        self.layout.prop(node_tree, "debug_blend_weight")
-        self.layout.prop(node_tree, "debug_phase")
-        self.layout.prop(node_tree, "debug_rate")
+        b = self.layout.box()
+        b.label(text="Target skeleton", icon="ARMATURE_DATA")
+        b.template_list(SOLLUMZ_UL_armature_list.bl_idname, "",
+                        bpy.data, "armatures", node_tree, "selected_armature")
+
+        b = self.layout.box()
+        b.label(text="Debug", icon="TOOL_SETTINGS")
+        b.prop(node_tree, "debug_blend_weight")
+        b.prop(node_tree, "debug_phase")
+        b.prop(node_tree, "debug_rate")
+
+        delete_network_parameter_op = SOLLUMZ_OT_MOVE_NETWORK_delete_network_parameter.bl_idname
+        add_network_parameter_op = SOLLUMZ_OT_MOVE_NETWORK_add_network_parameter.bl_idname
+
+        def draw_add_network_parameter(layout, param_name_prop, param_type):
+            r = layout.row()
+            r.prop(node_tree, param_name_prop, text="")
+            props = r.operator(add_network_parameter_op, text="", icon="ADD")
+            props.parameter_name_prop = param_name_prop
+            props.parameter_name = getattr(node_tree, param_name_prop)
+            props.parameter_type = param_type
+
+        b = self.layout.box()
+        b.label(text="Parameters", icon="SETTINGS")
+        b.label(text="Floats")
+        for param in node_tree.network_parameters.parameters_float:
+            r = b.row()
+            r.prop(param, "value", text=param.name)
+            r.operator(delete_network_parameter_op, text="", icon="X").parameter_name = param.name
+        draw_add_network_parameter(b, "ui_network_param_float_new_name", "float")
+        b.separator()
+        b.label(text="Bools")
+        for param in node_tree.network_parameters.parameters_bool:
+            r = b.row()
+            r.prop(param, "value", text=param.name)
+            r.operator(delete_network_parameter_op, text="", icon="X").parameter_name = param.name
+        draw_add_network_parameter(b, "ui_network_param_bool_new_name", "bool")
+        b.separator()
+        b.label(text="Clips")
+        for param in node_tree.network_parameters.parameters_clip:
+            r = b.row()
+            r.prop(param, "value", text=param.name)
+            r.operator(delete_network_parameter_op, text="", icon="X").parameter_name = param.name
+        draw_add_network_parameter(b, "ui_network_param_clip_new_name", "clip")
+        b.separator()
+        b.label(text="Assets")
+        for param in node_tree.network_parameters.parameters_asset:
+            r = b.row()
+            r.prop(param, "value", text=param.name)
+            r.operator(delete_network_parameter_op, text="", icon="X").parameter_name = param.name
+        draw_add_network_parameter(b, "ui_network_param_asset_new_name", "asset")
 
 
 class AnimationTreePropertiesPanel(bpy.types.Panel):
@@ -131,5 +176,3 @@ class StateMachinePropertiesPanel(bpy.types.Panel):
         node_tree = context.space_data.edit_tree
 
         self.layout.prop(node_tree, 'name')
-        for prop in node_tree.__annotations__:
-            self.layout.prop(node_tree, prop)

@@ -123,6 +123,7 @@ def create_animation_tree_nodes(animation_tree: NetworkTree, mn: MoveNodeBase, n
     if mn.type in _nodes_xml_type_to_animation_tree_type:
         n = animation_tree.nodes.new(_nodes_xml_type_to_animation_tree_type[mn.type].bl_idname)
         n.init_from_xml(mn)
+        n.add_required_parameters_to_network(network_root)
     else:
         raise TypeError("Invalid animation node type '%s'" % mn.type)
 
