@@ -38,7 +38,7 @@ class NetworkTree(bpy.types.NodeTree):
     ui_network_param_asset_new_name: bpy.props.StringProperty(name="New asset MoVE Network parameter...", default="")
 
     def try_add_parameter(self, parameterized_value):
-        print("try_add_parameter %s" % parameterized_value.parameter)
+        # print("try_add_parameter %s" % parameterized_value.parameter)
         if parameterized_value.type != "PARAMETER":
             return
 

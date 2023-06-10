@@ -357,33 +357,306 @@ class NetworkParameters(bpy.types.PropertyGroup):
                     collection.remove(i)
                     return
 
+    def clear(self):
+        self.parameters_float.clear()
+        self.parameters_bool.clear()
+        self.parameters_clip.clear()
+        self.parameters_asset.clear()
+
+    def try_add(self, parameter_name, data_type):
+        if data_type == "float":
+            return self.try_add_float(parameter_name)
+        elif data_type == "bool":
+            return self.try_add_bool(parameter_name)
+        elif data_type == "clip":
+            return self.try_add_clip(parameter_name)
+        elif data_type == "asset":
+            return self.try_add_asset(parameter_name)
+        else:
+            raise Exception(f"Unknown data type: {data_type}")
+
     def try_add_float(self, parameter_name):
         if self.exists(parameter_name):
-            return
+            return False
         self.parameters_float.add().name = parameter_name
+        return True
 
     def try_add_bool(self, parameter_name):
         if self.exists(parameter_name):
-            return
+            return False
         self.parameters_bool.add().name = parameter_name
+        return True
 
     def try_add_clip(self, parameter_name):
         if self.exists(parameter_name):
-            return
+            return False
         self.parameters_clip.add().name = parameter_name
+        return True
 
     def try_add_asset(self, parameter_name):
         if self.exists(parameter_name):
-            return
+            return False
         self.parameters_asset.add().name = parameter_name
+        return True
 
 
-def register():
-    pass
-    # bpy.types.Object.move_network_properties = bpy.props.PointerProperty(
-    #     type=MoveNetworkProperties)
+ATNodeParameterIds = {
+    "StateMachine": [
+    ],
+    "Tail": [
+    ],
+    "InlinedStateMachine": [
+    ],
+    "Blend": [
+        ("BLEND_FILTER", "Filter", "Filter", 0),  # rage::crFrameFilter
+        ("BLEND_WEIGHT", "Weight", "Weight", 1),  # float
+    ],
+    "AddSubtract": [
+        ("ADDSUBTRACT_FILTER", "Filter", "Filter", 0),  # rage::crFrameFilter
+        ("ADDSUBTRACT_WEIGHT", "Weight", "Weight", 1),  # float
+    ],
+    "Filter": [
+        ("FILTER_FILTER", "Filter", "Filter", 0),  # rage::crFrameFilter
+    ],
+    "Mirror": [
+        ("MIRROR_FILTER", "Filter", "Filter", 0),  # rage::crFrameFilter
+    ],
+    "Frame": [
+        ("FRAME_FRAME", "Frame", "Frame", 0),  # rage::crFrame
+    ],
+    "Ik": [
+    ],
+    "BlendN": [
+        None,
+        ("BLENDN_FILTER", "Filter", "Filter", 1),  # rage::crFrameFilter
+        ("BLENDN_CHILDWEIGHT", "Child Weight", "Child Weight", 2),  # float (extra arg is the child index)
+        ("BLENDN_CHILDFILTER", "Child Filter", "Child Filter", 3),  # rage::crFrameFilter (extra arg is the child index)
+    ],
+    "Clip": [
+        ("CLIP_CLIP", "Clip", "Clip", 0),  # rage::crClip
+        ("CLIP_PHASE", "Phase", "Phase", 1),  # float
+        ("CLIP_RATE", "Rate", "Rate", 2),  # float
+        ("CLIP_DELTA", "Delta", "Delta", 3),  # float
+        ("CLIP_LOOPED", "Looped", "Looped", 4),  # bool
+    ],
+    "Extrapolate": [
+        ("EXTRAPOLATE_DAMPING", "Damping", "Damping", 0),  # float
+    ],
+    "Expression": [
+        ("EXPRESSION_EXPRESSION", "Expression", "Expression", 0),  # rage::crExpressions
+        ("EXPRESSION_WEIGHT", "Weight", "Weight", 1),  # float
+        ("EXPRESSION_VARIABLE", "Variable", "Variable", 2),  # float (extra arg is the variable name hash)
+    ],
+    "Capture": [
+        ("CAPTURE_FRAME", "Frame", "Frame", 0),  # rage::crFrame
+    ],
+    "Proxy": [
+        ("PROXY_NODE", "Node", "Node", 0),  # rage::crmtNode
+    ],
+    "AddN": [
+        None,
+        ("ADDN_FILTER", "Filter", "Filter", 1),  # rage::crFrameFilter
+        ("ADDN_CHILDWEIGHT", "Child Weight", "Child Weight", 2),  # float (extra arg is the child index)
+        ("ADDN_CHILDFILTER", "Child Filter", "Child Filter", 3),  # rage::crFrameFilter (extra arg is the child index)
+    ],
+    "Identity": [
+    ],
+    "Merge": [
+        ("MERGE_FILTER", "Filter", "Filter", 0),  # rage::crFrameFilter
+    ],
+    "Pose": [
+        ("POSE_ISNORMALIZED", "Is Normalized", "Is Normalized", 0),  # bool (getter hardcoded to true, setter does nothing)
+    ],
+    "MergeN": [
+        None,
+        ("MERGEN_FILTER", "Filter", "Filter", 1),  # rage::crFrameFilter
+        ("MERGEN_CHILDWEIGHT", "Child Weight", "Child Weight", 2),  # float (extra arg is the child index)
+        ("MERGEN_CHILDFILTER", "Child Filter", "Child Filter", 3),  # rage::crFrameFilter (extra arg is the child index)
+    ],
+    "Invalid": [
+    ],
+    "JointLimit": [
+        ("JOINTLIMIT_FILTER", "Filter", "Filter", 0),  # rage::crFrameFilter (only setter exists)
+    ],
+}
 
 
-def unregister():
-    pass
-    # del bpy.types.Object.move_network_properties
+def get_node_parameter_ids_by_type(node_type):
+    return ATNodeParameterIds.get(node_type, [])
+
+
+ATNodeParameterDataTypes = {
+    "BLEND_FILTER": "asset",
+    "BLEND_WEIGHT": "float",
+    "ADDSUBTRACT_FILTER": "asset",
+    "ADDSUBTRACT_WEIGHT": "float",
+    "FILTER_FILTER": "asset",
+    "MIRROR_FILTER": "asset",
+    "FRAME_FRAME": "asset",  # TODO: how should we handle rage::crFrame parameters?
+    "BLENDN_FILTER": "asset",
+    "BLENDN_CHILDWEIGHT": "float",
+    "BLENDN_CHILDFILTER": "asset",
+    "CLIP_CLIP": "clip",
+    "CLIP_PHASE": "float",
+    "CLIP_RATE": "float",
+    "CLIP_DELTA": "float",
+    "CLIP_LOOPED": "bool",
+    "EXTRAPOLATE_DAMPING": "float",
+    "EXPRESSION_EXPRESSION": "asset",
+    "EXPRESSION_WEIGHT": "float",
+    "EXPRESSION_VARIABLE": "float",
+    "CAPTURE_FRAME": "asset",  # TODO: how should we handle rage::crFrame parameters?
+    "PROXY_NODE": "asset",  # TODO: how should we handle rage::crmtNode parameters?
+    "ADDN_FILTER": "asset",
+    "ADDN_CHILDWEIGHT": "float",
+    "ADDN_CHILDFILTER": "asset",
+    "MERGE_FILTER": "asset",
+    "POSE_ISNORMALIZED": "bool",
+    "MERGEN_FILTER": "asset",
+    "MERGEN_CHILDWEIGHT": "float",
+    "MERGEN_CHILDFILTER": "asset",
+    "JOINTLIMIT_FILTER": "asset",
+}
+
+
+ATNodeEventIds = {
+    "Clip": [
+        ("CLIP_ITERATIONFINISHED", "Iteration Finished", "Triggered when a looped clip iteration finishes playing", 0),
+        ("CLIP_FINISHED", "Finished", "Triggered when a non-looped clip finishes playing", 1),
+        ("CLIP_UNK2", "Unk2", "Unk2", 2),
+        ("CLIP_UNK3", "Unk3", "Unk3", 3),
+        ("CLIP_UNK4", "Unk4", "Unk4", 4),
+    ]
+}
+
+
+def get_node_event_ids_by_type(node_type):
+    return ATNodeEventIds.get(node_type, [])
+
+
+class ATNodeInputParameter(bpy.types.PropertyGroup):
+    def get_available_node_parameter_ids(self, context):
+        return get_node_parameter_ids_by_type(self.target_node_type)
+
+    source_parameter_name: bpy.props.StringProperty(name="Source Parameter", default="")
+    target_node_parameter_id: bpy.props.EnumProperty(name="Target Node Parameter ID", items=get_available_node_parameter_ids)
+    target_node_parameter_extra_arg: bpy.props.IntProperty(name="Target Node Parameter Extra Arg", default=0)
+    target_node_type: bpy.props.StringProperty(default="")  # only required for get_node_parameter_ids
+
+    def set_target_node_parameter_id(self, parameter_id_int):
+        assert self.target_node_type != "", "target_node_type must be set before calling set_target_node_parameter_id"
+        self.target_node_parameter_id = self.get_available_node_parameter_ids(None)[parameter_id_int][0]
+
+    def get_parameter_data_type(self):
+        return ATNodeParameterDataTypes[self.target_node_parameter_id]
+
+
+class ATNodeOutputParameter(bpy.types.PropertyGroup):
+    def get_available_node_parameter_ids(self, context):
+        return get_node_parameter_ids_by_type(self.source_node_type)
+
+    target_parameter_name: bpy.props.StringProperty(name="Target Parameter", default="")
+    source_node_parameter_id: bpy.props.EnumProperty(name="Source Node Parameter ID", items=get_available_node_parameter_ids)
+    source_node_parameter_extra_arg: bpy.props.IntProperty(name="Source Node Parameter Extra Arg", default=0)
+    source_node_type: bpy.props.StringProperty(default="")  # only required for get_node_parameter_ids
+
+    def set_source_node_parameter_id(self, parameter_id_int):
+        assert self.source_node_type != "", "source_node_type must be set before calling set_source_node_parameter_id"
+        self.source_node_parameter_id = self.get_available_node_parameter_ids(None)[parameter_id_int][0]
+
+    def get_parameter_data_type(self):
+        return ATNodeParameterDataTypes[self.source_node_parameter_id]
+
+
+class ATNodeEvent(bpy.types.PropertyGroup):
+    def get_available_node_event_ids(self, context):
+        return get_node_event_ids_by_type(self.node_type)
+
+    node_event_id: bpy.props.EnumProperty(name="Node Event ID", items=get_available_node_event_ids)
+    parameter_name: bpy.props.StringProperty(name="Parameter", default="")
+    node_type: bpy.props.StringProperty(default="")  # only required for get_node_event_ids
+
+    def set_node_event_id(self, event_id_int):
+        assert self.node_type != "", "node_type must be set before calling set_node_event_id"
+        self.node_event_id = self.get_available_node_event_ids(None)[event_id_int][0]
+
+
+ATNodeOperatorTypes = [
+    ("PushLiteral", "PushLiteral", "PushLiteral", 0),
+    ("PushParameter", "PushParameter", "PushParameter", 1),
+    ("Add", "Add", "Add", 2),
+    ("Multiply", "Multiply", "Multiply", 3),
+    ("Remap", "Remap", "Remap", 4),
+]
+
+
+def ATNodeOperatorTypeProperty(name=""):
+    return bpy.props.EnumProperty(name=name, items=ATNodeOperatorTypes)
+
+
+class ATNodeOperatorRemapRange(bpy.types.PropertyGroup):
+    percent: bpy.props.FloatProperty(name="Percent", default=0.0, min=0.0, max=1.0)
+    min: bpy.props.FloatProperty(name="Min", default=0.0)
+    length: bpy.props.FloatProperty(name="Length", default=0.0)
+
+
+class ATNodeOperator(bpy.types.PropertyGroup):
+    type: ATNodeOperatorTypeProperty(name="Type")
+    parameter_name: bpy.props.StringProperty(name="Parameter", default="")
+    value: bpy.props.FloatProperty(name="Value", default=0.0)
+    min: bpy.props.FloatProperty(name="Min", default=0.0)
+    max: bpy.props.FloatProperty(name="Max", default=0.0)
+    remap_ranges: bpy.props.CollectionProperty(name="Ranges", type=ATNodeOperatorRemapRange)
+
+    def set(self, op: MoveStateOperatorBase):
+        self.type = op.type
+        if self.type == "PushLiteral":
+            self.value = op.value
+        elif self.type == "PushParameter":
+            self.parameter_name = op.parameter_name
+        elif self.type == "Add" or self.type == "Multiply":
+            pass  # nothing to do
+        elif self.type == "Remap":
+            self.min = op.min
+            self.max = op.max
+            self.remap_ranges.clear()
+            for r in op.ranges:
+                remap_range = self.remap_ranges.add()
+                remap_range.percent = r.percent
+                remap_range.min = r.min
+                remap_range.length = r.length
+
+    def draw(self, context, layout, draw_parameter_name_prop=None):
+        row = layout.row()
+        row.prop(self, "type", text="")
+        if self.type == "PushLiteral":
+            row.prop(self, "value", text="")
+        elif self.type == "PushParameter":
+            if draw_parameter_name_prop is not None:
+                draw_parameter_name_prop(row, self, "parameter_name", "float", text="")
+            else:
+                row.prop(self, "parameter_name", text="")
+        elif self.type == "Remap":
+            row.prop(self, "min", text="")
+            row.prop(self, "max", text="")
+            for r in self.remap_ranges:
+                range_row = layout.row()
+                range_row.separator(factor=1.0)
+                range_row.prop(r, "percent")
+                range_row.prop(r, "min")
+                range_row.prop(r, "length")
+
+
+class ATNodeOperation(bpy.types.PropertyGroup):
+    def get_available_node_parameter_ids(self, context):
+        return list(filter(lambda e: e is not None and ATNodeParameterDataTypes[e[0]] == "float",
+                           get_node_parameter_ids_by_type(self.node_type)))
+
+    node_parameter_id: bpy.props.EnumProperty(name="Node Parameter ID", items=get_available_node_parameter_ids)
+    node_parameter_extra_arg: bpy.props.IntProperty(name="Node Parameter Extra Arg", default=0)
+    operators: bpy.props.CollectionProperty(name="Operators", type=ATNodeOperator)
+    node_type: bpy.props.StringProperty(default="")  # only required for get_node_parameter_ids
+
+    def set_node_parameter_id(self, parameter_id_int):
+        assert self.node_type != "", "node_type must be set before calling set_node_parameter_id"
+        self.node_parameter_id = get_node_parameter_ids_by_type(self.node_type)[parameter_id_int][0]

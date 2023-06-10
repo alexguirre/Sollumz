@@ -1,5 +1,6 @@
 import bpy
 from ..nodes.node_tree import NetworkTree
+from ..nodes.nodes import ATNodeOutputAnimation
 from ...sollumz_ui import SOLLUMZ_UL_armature_list
 from ..operators.preview_network import SOLLUMZ_OT_MOVE_NETWORK_preview_network
 from ..operators.preview_animation_tree import SOLLUMZ_OT_MOVE_NETWORK_preview_animation_tree
@@ -45,7 +46,7 @@ class NetworkPropertiesPanel(bpy.types.Panel):
         add_network_parameter_op = SOLLUMZ_OT_MOVE_NETWORK_add_network_parameter.bl_idname
 
         def draw_add_network_parameter(layout, param_name_prop, param_type):
-            r = layout.row()
+            r = layout.row(align=True)
             r.prop(node_tree, param_name_prop, text="")
             props = r.operator(add_network_parameter_op, text="", icon="ADD")
             props.parameter_name_prop = param_name_prop
@@ -56,28 +57,28 @@ class NetworkPropertiesPanel(bpy.types.Panel):
         b.label(text="Parameters", icon="SETTINGS")
         b.label(text="Floats")
         for param in node_tree.network_parameters.parameters_float:
-            r = b.row()
+            r = b.row(align=True)
             r.prop(param, "value", text=param.name)
             r.operator(delete_network_parameter_op, text="", icon="X").parameter_name = param.name
         draw_add_network_parameter(b, "ui_network_param_float_new_name", "float")
         b.separator()
         b.label(text="Bools")
         for param in node_tree.network_parameters.parameters_bool:
-            r = b.row()
+            r = b.row(align=True)
             r.prop(param, "value", text=param.name)
             r.operator(delete_network_parameter_op, text="", icon="X").parameter_name = param.name
         draw_add_network_parameter(b, "ui_network_param_bool_new_name", "bool")
         b.separator()
         b.label(text="Clips")
         for param in node_tree.network_parameters.parameters_clip:
-            r = b.row()
+            r = b.row(align=True)
             r.prop(param, "value", text=param.name)
             r.operator(delete_network_parameter_op, text="", icon="X").parameter_name = param.name
         draw_add_network_parameter(b, "ui_network_param_clip_new_name", "clip")
         b.separator()
         b.label(text="Assets")
         for param in node_tree.network_parameters.parameters_asset:
-            r = b.row()
+            r = b.row(align=True)
             r.prop(param, "value", text=param.name)
             r.operator(delete_network_parameter_op, text="", icon="X").parameter_name = param.name
         draw_add_network_parameter(b, "ui_network_param_asset_new_name", "asset")
@@ -176,3 +177,94 @@ class StateMachinePropertiesPanel(bpy.types.Panel):
         node_tree = context.space_data.edit_tree
 
         self.layout.prop(node_tree, 'name')
+
+
+class ATNodeActionsPanel(bpy.types.Panel):
+    bl_label = "Actions"
+    bl_idname = "SOLLUMZ_PT_MOVE_NETWORK_ATNodeActionsPanel"
+    bl_category = "Node"
+    bl_space_type = "NODE_EDITOR"
+    bl_region_type = "UI"
+
+    @classmethod
+    def poll(cls, context):
+        space = context.space_data
+        return (space.tree_type == NetworkTree.bl_idname and
+                space.edit_tree is not None and
+                space.edit_tree.bl_idname == NetworkTree.bl_idname and
+                space.edit_tree.network_tree_type == 'ANIMATION_TREE' and
+                context.active_node is not None and
+                context.active_node.bl_idname != ATNodeOutputAnimation.bl_idname)
+
+    def draw(self, context):
+        pass
+
+
+class ATNodeActionsSubPanel:
+    bl_category = ATNodeActionsPanel.bl_category
+    bl_space_type = ATNodeActionsPanel.bl_space_type
+    bl_region_type = ATNodeActionsPanel.bl_region_type
+    bl_parent_id = ATNodeActionsPanel.bl_idname
+
+    def draw(self, context):
+        node_tree = context.space_data.edit_tree
+        network = node_tree.network_root or node_tree
+        node = context.active_node
+
+        def draw_parameter_name_prop(layout, obj, prop_name, data_type, text=None):
+            layout.prop_search(obj, prop_name, network.network_parameters, "parameters_{}".format(data_type), text=text)
+
+        self.do_draw(context, node, draw_parameter_name_prop)
+
+    def do_draw(self, context, node, draw_parameter_name_prop):
+        raise NotImplementedError
+
+
+class ATNodeActionsInputParametersPanel(ATNodeActionsSubPanel, bpy.types.Panel):
+    bl_label = "Input Parameters"
+    bl_idname = "SOLLUMZ_PT_MOVE_NETWORK_ATNodeActionsInputParametersPanel"
+    bl_order = 0
+
+    def do_draw(self, context, node, draw_parameter_name_prop):
+        for ip in node.input_parameters:
+            draw_parameter_name_prop(self.layout, ip, "source_parameter_name", ip.get_parameter_data_type())
+            self.layout.prop(ip, "target_node_parameter_id")
+            self.layout.prop(ip, "target_node_parameter_extra_arg")
+
+
+class ATNodeActionsOutputParametersPanel(ATNodeActionsSubPanel, bpy.types.Panel):
+    bl_label = "Output Parameters"
+    bl_idname = "SOLLUMZ_PT_MOVE_NETWORK_ATNodeActionsOutputParametersPanel"
+    bl_order = 1
+
+    def do_draw(self, context, node, draw_parameter_name_prop):
+        for op in node.output_parameters:
+            draw_parameter_name_prop(self.layout, op, "target_parameter_name", op.get_parameter_data_type())
+            self.layout.prop(op, "source_node_parameter_id")
+            self.layout.prop(op, "source_node_parameter_extra_arg")
+
+
+class ATNodeActionsEventsPanel(ATNodeActionsSubPanel, bpy.types.Panel):
+    bl_label = "Events"
+    bl_idname = "SOLLUMZ_PT_MOVE_NETWORK_ATNodeActionsEventsPanel"
+    bl_order = 2
+
+    def do_draw(self, context, node, draw_parameter_name_prop):
+        for evt in node.events:
+            self.layout.prop(evt, "node_event_id")
+            draw_parameter_name_prop(self.layout, evt, "parameter_name", "bool")
+
+
+class ATNodeActionsOperationsPanel(ATNodeActionsSubPanel, bpy.types.Panel):
+    bl_label = "Operations"
+    bl_idname = "SOLLUMZ_PT_MOVE_NETWORK_ATNodeActionsOperationsPanel"
+    bl_order = 3
+
+    def do_draw(self, context, node, draw_parameter_name_prop):
+        for ops in node.operations:
+            self.layout.prop(ops, "node_parameter_id")
+            self.layout.prop(ops, "node_parameter_extra_arg")
+            b = self.layout.box()
+            b.label(text="Operators")
+            for operator in ops.operators:
+                operator.draw(context, b, draw_parameter_name_prop)

@@ -26,6 +26,13 @@ class AnimationTreeNodeBase(bpy.types.Node):
 
     bl_label = "Node"
 
+    # note: in MRFs these are stored in the parent state of the animation tree, but here makes more sense to store
+    #  them in the node itself for editing and previewing purposes
+    input_parameters: bpy.props.CollectionProperty(name="Input Parameters", type=ATNodeInputParameter)
+    output_parameters: bpy.props.CollectionProperty(name="Output Parameters", type=ATNodeOutputParameter)
+    events: bpy.props.CollectionProperty(name="Events", type=ATNodeEvent)
+    operations: bpy.props.CollectionProperty(name="Operations", type=ATNodeOperation)
+
     @classmethod
     def poll(cls, ntree):
         return ntree.bl_idname == NetworkTree.bl_idname and ntree.network_tree_type == "ANIMATION_TREE"
@@ -34,7 +41,21 @@ class AnimationTreeNodeBase(bpy.types.Node):
         raise NotImplementedError
 
     def add_required_parameters_to_network(self, network):
-        pass
+        for ip in self.input_parameters:
+            param_name = ip.source_parameter_name
+            data_type = ip.get_parameter_data_type()
+            network.network_parameters.try_add(param_name, data_type)
+        for op in self.output_parameters:
+            param_name = op.target_parameter_name
+            data_type = op.get_parameter_data_type()
+            network.network_parameters.try_add(param_name, data_type)
+        for evt in self.events:
+            network.network_parameters.try_add_bool(evt.parameter_name)
+        for ops in self.operations:
+            for operator in ops.operators:
+                if operator.type == "PushParameter":
+                    # operations only work on floats
+                    network.network_parameters.try_add_float(operator.parameter_name)
 
     def create_input(self, socket_name, socket_label):
         if self.inputs.get(socket_name):
@@ -194,6 +215,7 @@ class ATNodeBlend(ATNode2x1):
         self.unk_flag25 = node_xml.unk_flag25
 
     def add_required_parameters_to_network(self, network):
+        super().add_required_parameters_to_network(network)
         network.try_add_parameter(self.weight)
         network.try_add_parameter(self.frame_filter)
 
@@ -225,6 +247,7 @@ class ATNodeAddSubtract(ATNode2x1):
         self.frame_filter.set(node_xml.frame_filter)
 
     def add_required_parameters_to_network(self, network):
+        super().add_required_parameters_to_network(network)
         network.try_add_parameter(self.weight)
         network.try_add_parameter(self.frame_filter)
 
@@ -243,6 +266,7 @@ class ATNodeFilter(ATNode1x1):
         self.frame_filter.set(node_xml.frame_filter)
 
     def add_required_parameters_to_network(self, network):
+        super().add_required_parameters_to_network(network)
         network.try_add_parameter(self.frame_filter)
 
     def draw_buttons(self, context, layout):
@@ -259,6 +283,7 @@ class ATNodeMirror(ATNode1x1):
         self.frame_filter.set(node_xml.frame_filter)
 
     def add_required_parameters_to_network(self, network):
+        super().add_required_parameters_to_network(network)
         network.try_add_parameter(self.frame_filter)
 
     def draw_buttons(self, context, layout):
@@ -306,6 +331,7 @@ class ATNodeBlendN(ATNodeNx1):
             self.children_properties.add().set(c)
 
     def add_required_parameters_to_network(self, network):
+        super().add_required_parameters_to_network(network)
         network.try_add_parameter(self.frame_filter)
 
     def draw_buttons(self, context, layout):
@@ -339,6 +365,7 @@ class ATNodeClip(ATNode0x1):
         self.looped.set(node_xml.looped)
 
     def add_required_parameters_to_network(self, network):
+        super().add_required_parameters_to_network(network)
         network.try_add_parameter(self.clip)
         network.try_add_parameter(self.phase)
         network.try_add_parameter(self.rate)
@@ -364,6 +391,7 @@ class ATNodeExtrapolate(ATNode1x1):
         self.damping.set(node_xml.damping)
 
     def add_required_parameters_to_network(self, network):
+        super().add_required_parameters_to_network(network)
         network.try_add_parameter(self.damping)
 
     def draw_buttons(self, context, layout):
@@ -382,6 +410,7 @@ class ATNodeExpression(ATNode1x1):
         self.expression.set(node_xml.expression)
 
     def add_required_parameters_to_network(self, network):
+        super().add_required_parameters_to_network(network)
         network.try_add_parameter(self.weight)
         network.try_add_parameter(self.expression)
 
@@ -436,6 +465,7 @@ class ATNodeAddN(ATNodeNx1):
             self.children_properties.add().set(c)
 
     def add_required_parameters_to_network(self, network):
+        super().add_required_parameters_to_network(network)
         network.try_add_parameter(self.frame_filter)
 
     def draw_buttons(self, context, layout):
@@ -495,6 +525,7 @@ class ATNodeMergeN(ATNodeNx1):
             self.children_properties.add().set(c)
 
     def add_required_parameters_to_network(self, network):
+        super().add_required_parameters_to_network(network)
         network.try_add_parameter(self.frame_filter)
 
     def draw_buttons(self, context, layout):

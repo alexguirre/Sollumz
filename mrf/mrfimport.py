@@ -63,7 +63,7 @@ def create_state_machine_graph_node(sm_tree: NetworkTree, mn: MoveNodeBase, netw
         state_node.name = mn.name
         state_node.label = "%s (State)" % mn.name
 
-        state_node.animation_tree = create_animation_tree(sm_tree.name, mn.name, mn.initial_node, network_root)
+        state_node.animation_tree = create_animation_tree(sm_tree.name, mn.name, mn.initial_node, network_root, mn)
 
     elif mn.type == MoveNodeStateMachine.type:
         state_node = sm_tree.nodes.new(SMNodeStateMachine.bl_idname)
@@ -104,24 +104,25 @@ _nodes_xml_type_to_animation_tree_type = {
 }
 
 
-def create_animation_tree(parent_name, name, mn: MoveNodeBase, network_root: NetworkTree):
+def create_animation_tree(parent_name, name, mn: MoveNodeBase, network_root: NetworkTree, parent_state: MoveNodeState):
     animation_tree = bpy.data.node_groups.new(parent_name + "." + name, NetworkTree.bl_idname)
     animation_tree.network_tree_type = "ANIMATION_TREE"
     animation_tree.network_root = network_root
     final_output = animation_tree.nodes.new(ATNodeOutputAnimation.bl_idname)
-    root_node = create_animation_tree_nodes(animation_tree, mn, network_root)
+    root_node = create_animation_tree_nodes(animation_tree, mn, network_root, parent_state)
     animation_tree.links.new(root_node.outputs["output"], final_output.inputs["input"])
     layout_animation_tree(animation_tree)
     return animation_tree
 
 
-def create_animation_tree_nodes(animation_tree: NetworkTree, mn: MoveNodeBase, network_root: NetworkTree):
+def create_animation_tree_nodes(animation_tree: NetworkTree, mn: MoveNodeBase, network_root: NetworkTree, parent_state: MoveNodeState):
     if animation_tree.network_tree_type != "ANIMATION_TREE":
         raise Exception("Expected an animation tree tree, found '%s'" % animation_tree.network_tree_type)
 
     n = None
     if mn.type in _nodes_xml_type_to_animation_tree_type:
         n = animation_tree.nodes.new(_nodes_xml_type_to_animation_tree_type[mn.type].bl_idname)
+        assign_state_data_to_animation_tree_node(parent_state, n, mn)
         n.init_from_xml(mn)
         n.add_required_parameters_to_network(network_root)
     else:
@@ -129,24 +130,62 @@ def create_animation_tree_nodes(animation_tree: NetworkTree, mn: MoveNodeBase, n
 
     # create children and connect them
     if isinstance(mn, MoveNodeWithChildBase):
-        n_child = create_animation_tree_nodes(animation_tree, mn.child, network_root)
+        n_child = create_animation_tree_nodes(animation_tree, mn.child, network_root, parent_state)
         animation_tree.links.new(n_child.outputs["output"], n.inputs["input"])
     elif isinstance(mn, MoveNodePairBase):
-        n_child0 = create_animation_tree_nodes(animation_tree, mn.child0, network_root)
-        n_child1 = create_animation_tree_nodes(animation_tree, mn.child1, network_root)
+        n_child0 = create_animation_tree_nodes(animation_tree, mn.child0, network_root, parent_state)
+        n_child1 = create_animation_tree_nodes(animation_tree, mn.child1, network_root, parent_state)
         animation_tree.links.new(n_child0.outputs["output"], n.inputs["input0"])
         animation_tree.links.new(n_child1.outputs["output"], n.inputs["input1"])
     elif isinstance(mn, MoveNodeNBase):
         for child in mn.children:
-            n_child = create_animation_tree_nodes(animation_tree, child.node, network_root)
+            n_child = create_animation_tree_nodes(animation_tree, child.node, network_root, parent_state)
             animation_tree.links.new(n_child.outputs["output"], n.inputs["inputs"])
 
     if mn.type == MoveNodeStateMachine.type:
         n.state_machine_tree = create_state_machine_graph_tree(animation_tree.name, mn, network_root)
     elif mn.type == MoveNodeInlinedStateMachine.type:
         n.state_machine_tree = create_state_machine_graph_tree(animation_tree.name, mn, network_root)
-        n.fallback_animation_tree = create_animation_tree(animation_tree.name, mn.name + ".fallback", mn.fallback_node, network_root)
+        n.fallback_animation_tree = create_animation_tree(animation_tree.name, mn.name + ".fallback",
+                                                          mn.fallback_node, network_root, parent_state)
 
     n.name = mn.name
     n.label = "%s (%s)" % (mn.name, n.bl_label)
     return n
+
+
+def assign_state_data_to_animation_tree_node(parent_state: MoveNodeState, node: AnimationTreeNodeBase, node_xml: MoveNodeBase):
+    """Assigns the state input_parameters, output_parameters, events and operations corresponding to the given node."""
+    node_index = node_xml.node_index
+    for op in parent_state.input_parameters:
+        if op.target_node_index == node_index:
+            node_ip = node.input_parameters.add()
+            node_ip.source_parameter_name = op.source_parameter_name
+            node_ip.target_node_type = node_xml.type
+            node_ip.set_target_node_parameter_id(op.target_node_parameter_id)
+            node_ip.target_node_parameter_extra_arg = op.target_node_parameter_extra_arg
+    for op in parent_state.output_parameters:
+        if op.source_node_index == node_index:
+            node_op = node.output_parameters.add()
+            node_op.target_parameter_name = op.target_parameter_name
+            node_op.source_node_type = node_xml.type
+            node_op.set_source_node_parameter_id(op.source_node_parameter_id)
+            node_op.source_node_parameter_extra_arg = op.source_node_parameter_extra_arg
+    for evt in parent_state.events:
+        if evt.node_index == node_index:
+            node_evt = node.events.add()
+            node_evt.node_type = node_xml.type
+            node_evt.set_node_event_id(evt.node_event_id)
+            node_evt.parameter_name = evt.parameter_name
+    for ops in parent_state.operations:
+        if ops.node_index == node_index:
+            node_ops = node.operations.add()
+            node_ops.node_type = node_xml.type
+            node_ops.set_node_parameter_id(ops.node_parameter_id)
+            node_ops.node_parameter_extra_arg = ops.node_parameter_extra_arg
+            for operator in ops.operators:
+                if operator.type == "Finish":
+                    # the finish marker is not necessary in the node operators
+                    # TODO: make Finish implicit and remove it from XML on CW
+                    break
+                node_ops.operators.add().set(operator)
