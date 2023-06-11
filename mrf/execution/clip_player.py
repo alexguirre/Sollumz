@@ -6,24 +6,69 @@ from .frame_buffer import FrameBuffer
 
 
 class ClipPlayer:
-    def __init__(self, clip_obj, armature_obj):
-        if clip_obj.sollum_type != SollumType.CLIP:
-            raise Exception("clip_obj is not a clip")
-
-        clip_properties = clip_obj.clip_properties
-        self.clip_obj = clip_obj
-        self.clip_dictionary = clip_obj.parent.parent
-        self.duration = clip_properties.duration
+    def __init__(self, armature_obj):
+        self._clip_obj = None
+        self.armature_obj = armature_obj
+        self.num_bones = len(self.armature_obj.pose.bones)
+        self.duration = 0.0
         self.time = 0.0
         self.rate = 1.0
+        self.delta = 0.0  # TODO: handle delta value
+        self.looped = False  # TODO: handle looped value
+        self.frame_count = 0
+        self.frames = []
+
+    @property
+    def clip(self):
+        return self._clip_obj
+
+    @clip.setter
+    def clip(self, value):
+        if value is None:
+            self._clip_obj = None
+            return
+
+        assert value.sollum_type == SollumType.CLIP
+
+        if value != self._clip_obj:
+            self._clip_obj = value
+            self._cache_animation_frames()
+
+    @property
+    def phase(self):
+        return self.time / self.duration if self.duration != 0.0 else 0.0
+
+    @phase.setter
+    def phase(self, value):
+        self.time = self.duration * value
+
+    def update(self, delta_time):
+        if self._clip_obj is None:
+            return FrameBuffer(self.num_bones)
+
+        self.time += delta_time * self.rate
+        frame_curr = (self.frame_count - 1) * self.phase
+        frame_idx = math.floor(frame_curr) % self.frame_count
+        frame = self.frames[frame_idx].copy()  # TODO: may want to receive a buffer to write to instead so it can be reused
+        if frame_idx + 1 < self.frame_count:
+            # subframe interpolation
+            frame_next = self.frames[(frame_idx + 1) % self.frame_count]
+            subframe = frame_curr - math.floor(frame_curr)
+            frame.blend(frame_next, subframe)
+        return frame
+
+    def _cache_animation_frames(self):
+        assert self._clip_obj is not None
+
+        clip_properties = self._clip_obj.clip_properties
+        self.duration = clip_properties.duration
         self.frame_count = round(clip_properties.duration * bpy.context.scene.render.fps)
-        num_bones = len(armature_obj.pose.bones)
-        self.frames = [FrameBuffer(num_bones) for _ in range(self.frame_count)]
+        self.frames = [FrameBuffer(self.num_bones) for _ in range(self.frame_count)]  # TODO: may want to reuse buffers
         # TODO: set framebuffer from original pose of armature
 
         bone_name_to_index = {}
         bone_index = 0
-        for bone in armature_obj.pose.bones:
+        for bone in self.armature_obj.pose.bones:
             bone_name_to_index[bone.name] = bone_index
             bone_index += 1
 
@@ -59,7 +104,7 @@ class ClipPlayer:
                     "action": action,
                 })
 
-        tmp_buffer = FrameBuffer(num_bones)
+        tmp_buffer = FrameBuffer(self.num_bones)
         for group_name, clips in groups.items():
             for clip in clips:
                 action_frame_start = clip["start_frames"]
@@ -105,23 +150,3 @@ class ClipPlayer:
                         self.frames[frame].multiply(tmp_buffer)
                     elif "_base" in group_name:
                         self.frames[frame].combine(tmp_buffer)
-
-    @property
-    def phase(self):
-        return self.time / self.duration
-
-    @phase.setter
-    def phase(self, value):
-        self.time = self.duration * value
-
-    def update(self, delta_time):
-        self.time += delta_time * self.rate
-        frame_curr = (self.frame_count - 1) * self.phase
-        frame_idx = math.floor(frame_curr) % self.frame_count
-        frame = self.frames[frame_idx].copy()  # TODO: may want to receive a buffer to write to instead so it can be reused
-        if frame_idx + 1 < self.frame_count:
-            # subframe interpolation
-            frame_next = self.frames[(frame_idx + 1) % self.frame_count]
-            subframe = frame_curr - math.floor(frame_curr)
-            frame.blend(frame_next, subframe)
-        return frame

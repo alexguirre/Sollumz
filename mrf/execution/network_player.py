@@ -46,8 +46,10 @@ class NetworkPlayer:
 
         clip_obj1 = bpy.data.objects["sweep_high_full"]
         clip_obj2 = bpy.data.objects["sweep_med_full"]
-        self.clip_player1 = ClipPlayer(clip_obj1, self.armature_obj)
-        self.clip_player2 = ClipPlayer(clip_obj2, self.armature_obj)
+        self.clip_player1 = ClipPlayer(self.armature_obj)
+        self.clip_player1.clip = clip_obj1
+        self.clip_player2 = ClipPlayer(self.armature_obj)
+        self.clip_player2.clip = clip_obj2
 
     def play(self):
         assert self.armature is not None, "Armature must be set."

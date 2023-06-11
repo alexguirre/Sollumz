@@ -345,17 +345,16 @@ class NetworkParameters(bpy.types.PropertyGroup):
 
     def exists(self, parameter_name):
         for collection in (self.parameters_float, self.parameters_bool, self.parameters_clip, self.parameters_asset):
-            for p in collection:
-                if p.name == parameter_name:
-                    return True
+            if collection.find(parameter_name) != -1:
+                return True
         return False
 
     def remove(self, parameter_name):
         for collection in (self.parameters_float, self.parameters_bool, self.parameters_clip, self.parameters_asset):
-            for i, p in enumerate(collection):
-                if p.name == parameter_name:
-                    collection.remove(i)
-                    return
+            i = collection.find(parameter_name)
+            if i != -1:
+                collection.remove(i)
+                return
 
     def clear(self):
         self.parameters_float.clear()
@@ -379,6 +378,12 @@ class NetworkParameters(bpy.types.PropertyGroup):
         if self.exists(parameter_name):
             return False
         self.parameters_float.add().name = parameter_name
+        print(">>> " + parameter_name)
+        print(self.parameters_float[len(self.parameters_float) - 1])
+        print(self.parameters_float[parameter_name])
+        print(self.parameters_float.find(parameter_name))
+        print(self.parameters_float.get(parameter_name, None))
+        print(self.parameters_float.get("something", None))
         return True
 
     def try_add_bool(self, parameter_name):
@@ -398,6 +403,57 @@ class NetworkParameters(bpy.types.PropertyGroup):
             return False
         self.parameters_asset.add().name = parameter_name
         return True
+
+    def get(self, parameter_name):
+        for collection in (self.parameters_float, self.parameters_bool, self.parameters_clip, self.parameters_asset):
+            param = collection.get(parameter_name, None)
+            if param is not None:
+                return param.value
+
+        return None
+
+    def get_float(self, parameter_name):
+        param = self.parameters_float.get(parameter_name, None)
+        return param.value if param is not None else None
+
+    def get_bool(self, parameter_name):
+        param = self.parameters_bool.get(parameter_name, None)
+        return param.value if param is not None else None
+
+    def get_clip(self, parameter_name):
+        param = self.parameters_clip.get(parameter_name, None)
+        return param.value if param is not None else None
+
+    def get_asset(self, parameter_name):
+        param = self.parameters_asset.get(parameter_name, None)
+        return param.value if param is not None else None
+
+    def set(self, parameter_name, value):
+        for collection in (self.parameters_float, self.parameters_bool, self.parameters_clip, self.parameters_asset):
+            param = collection.get(parameter_name, None)
+            if param is not None:
+                param.value = value
+                return
+
+    def set_float(self, parameter_name, value):
+        param = self.parameters_float.get(parameter_name, None)
+        if param is not None:
+            param.value = value
+
+    def set_bool(self, parameter_name, value):
+        param = self.parameters_bool.get(parameter_name, None)
+        if param is not None:
+            param.value = value
+
+    def set_clip(self, parameter_name, value):
+        param = self.parameters_clip.get(parameter_name, None)
+        if param is not None:
+            param.value = value
+
+    def set_asset(self, parameter_name, value):
+        param = self.parameters_asset.get(parameter_name, None)
+        if param is not None:
+            param.value = value
 
 
 ATNodeParameterIds = {

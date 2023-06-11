@@ -11,17 +11,20 @@ class AnimationTreeContext:
         self.delta_time = 0.0
 
 
-_tmp_idx = 0
-def exec_node_update_clip(node, context: AnimationTreeContext):
+# _tmp_idx = 0
+def get_clip_player(node, context: AnimationTreeContext):
     clip_player = getattr(node, "exec_clip_player", None)
     if clip_player is None:
-        global _tmp_idx
-        clip_obj = bpy.data.objects[("sweep_high_full", "sweep_med_full")[_tmp_idx]]  # TODO: get clip
-        _tmp_idx ^= 1
-        clip_player = ClipPlayer(clip_obj, context.armature_obj)
+        # global _tmp_idx
+        # clip_obj = bpy.data.objects[("sweep_high_full", "sweep_med_full")[_tmp_idx]]  # TODO: get clip
+        # _tmp_idx ^= 1
+        clip_player = ClipPlayer(context.armature_obj)
         node.exec_clip_player = clip_player
+    return clip_player
 
-    return clip_player.update(context.delta_time)
+
+def exec_node_update_clip(node, context: AnimationTreeContext):
+    return get_clip_player(node, context).update(context.delta_time)
 
 
 def exec_node_update_child_passthrough(node, context: AnimationTreeContext):
@@ -30,10 +33,11 @@ def exec_node_update_child_passthrough(node, context: AnimationTreeContext):
 
 
 def exec_node_update_blend(node, context: AnimationTreeContext):
-    frame1 = node.children[0].update(context)
-    frame2 = node.children[1].update(context)
-    frame1.blend(frame2, context.network.debug_blend_weight)  # TODO: get blend weight value
-    return frame1
+    return exec_node_update_child_passthrough(node, context)
+    # frame1 = node.children[0].update(context)
+    # frame2 = node.children[1].update(context)
+    # frame1.blend(frame2, context.network.debug_blend_weight)  # TODO: get blend weight value
+    # return frame1
 
 
 def exec_node_update_identity(node, context: AnimationTreeContext):
@@ -68,14 +72,113 @@ exec_node_update_dict = {
 }
 
 
+def exec_node_get_parameter_default(node, context: AnimationTreeContext, parameter_id, extra_arg):
+    return None
+    # raise Exception("Unknown node parameter id: {}".format(parameter_id))
+
+
+def exec_node_set_parameter_default(node, context: AnimationTreeContext, parameter_id, extra_arg, value):
+    pass
+    # raise Exception("Unknown node parameter id: {}".format(parameter_id))
+
+
+def exec_node_get_parameter_clip(node, context: AnimationTreeContext, parameter_id, extra_arg):
+    if parameter_id == "CLIP_CLIP":
+        return get_clip_player(node, context).clip
+    elif parameter_id == "CLIP_PHASE":
+        return get_clip_player(node, context).phase
+    elif parameter_id == "CLIP_RATE":
+        return get_clip_player(node, context).rate
+    elif parameter_id == "CLIP_DELTA":
+        return get_clip_player(node, context).delta
+    elif parameter_id == "CLIP_LOOPED":
+        return get_clip_player(node, context).looped
+    else:
+        raise Exception("Unknown clip node parameter id: {}".format(parameter_id))
+
+
+def exec_node_set_parameter_clip(node, context: AnimationTreeContext, parameter_id, extra_arg, value):
+    if parameter_id == "CLIP_CLIP":
+        get_clip_player(node, context).clip = value
+    elif parameter_id == "CLIP_PHASE":
+        get_clip_player(node, context).phase = float(value)
+    elif parameter_id == "CLIP_RATE":
+        get_clip_player(node, context).rate = float(value)
+    elif parameter_id == "CLIP_DELTA":
+        get_clip_player(node, context).delta = float(value)
+    elif parameter_id == "CLIP_LOOPED":
+        get_clip_player(node, context).looped = bool(value)
+    else:
+        raise Exception("Unknown clip node parameter id: {}".format(parameter_id))
+
+
+exec_node_getset_parameter_default = (exec_node_get_parameter_default, exec_node_set_parameter_default)
+
+exec_node_getset_parameter_dict = {
+    ATNodeOutputAnimation.bl_idname: (None, None),
+    ATNodeStateMachine.bl_idname: exec_node_getset_parameter_default,
+    ATNodeTail.bl_idname: exec_node_getset_parameter_default,
+    ATNodeInlinedStateMachine.bl_idname: exec_node_getset_parameter_default,
+    ATNodeBlend.bl_idname: exec_node_getset_parameter_default,
+    ATNodeAddSubtract.bl_idname: exec_node_getset_parameter_default,
+    ATNodeFilter.bl_idname: exec_node_getset_parameter_default,
+    ATNodeMirror.bl_idname: exec_node_getset_parameter_default,
+    ATNodeFrame.bl_idname: exec_node_getset_parameter_default,
+    ATNodeIk.bl_idname: exec_node_getset_parameter_default,
+    ATNodeBlendN.bl_idname: exec_node_getset_parameter_default,
+    ATNodeClip.bl_idname: (exec_node_get_parameter_clip, exec_node_set_parameter_clip),
+    ATNodeExtrapolate.bl_idname: exec_node_getset_parameter_default,
+    ATNodeExpression.bl_idname: exec_node_getset_parameter_default,
+    ATNodeCapture.bl_idname: exec_node_getset_parameter_default,
+    ATNodeProxy.bl_idname: exec_node_getset_parameter_default,
+    ATNodeAddN.bl_idname: exec_node_getset_parameter_default,
+    ATNodeIdentity.bl_idname: exec_node_getset_parameter_default,
+    ATNodeMerge.bl_idname: exec_node_getset_parameter_default,
+    ATNodePose.bl_idname: exec_node_getset_parameter_default,
+    ATNodeMergeN.bl_idname: exec_node_getset_parameter_default,
+    ATNodeInvalid.bl_idname: exec_node_getset_parameter_default,
+    ATNodeJointLimit.bl_idname: exec_node_getset_parameter_default,
+    ATNodeSubNetwork.bl_idname: exec_node_getset_parameter_default,
+}
+
+
 class ATExecNode:
     def __init__(self, ui_node):
         self.ui_node = ui_node
         self.children = []
         self.exec_node_update = exec_node_update_dict[ui_node.bl_idname]
+        getset_parameter = exec_node_getset_parameter_dict[ui_node.bl_idname]
+        self.exec_node_get_parameter = getset_parameter[0]
+        self.exec_node_set_parameter = getset_parameter[1]
 
     def update(self, context: AnimationTreeContext):
-        return self.exec_node_update(self, context)
+        self._pre_update(context)
+        result = self.exec_node_update(self, context)
+        self._post_update(context)
+        return result
+
+    def _pre_update(self, context: AnimationTreeContext):
+        """
+        Called before the node is updated. Handles:
+         - input parameters
+         - operations
+        """
+        for ip in self.ui_node.input_parameters:
+            value = context.network.network_parameters.get(ip.source_parameter_name)
+            self.exec_node_set_parameter(self, context,
+                                         ip.target_node_parameter_id, ip.target_node_parameter_extra_arg, value)
+
+    def _post_update(self, context: AnimationTreeContext):
+        """
+        Called after the node is updated. Handles:
+         - output parameters
+         - events
+        """
+        for op in self.ui_node.output_parameters:
+            value = self.exec_node_get_parameter(self, context,
+                                                 op.source_node_parameter_id, op.source_node_parameter_extra_arg)
+            context.network.network_parameters.set(op.target_parameter_name, value)
+
 
     def __str__(self):
         import textwrap
