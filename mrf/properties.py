@@ -202,15 +202,6 @@ def SynchronizerTypeProperty(name=""):
     return bpy.props.EnumProperty(name=name, items=SynchronizerTypes)
 
 
-class ATNodeNChildProperties(bpy.types.PropertyGroup):
-    weight: bpy.props.PointerProperty(name="Weight", type=ParameterizedFloatProperty)
-    frame_filter: bpy.props.PointerProperty(name="Frame Filter", type=ParameterizedAssetProperty)
-
-    def set(self, v: MoveNodeNChildren.Child):
-        self.weight.set(v.weight)
-        self.frame_filter.set(v.frame_filter)
-
-
 SMConditionTypes = [
     ("ParameterInsideRange", "ParameterInsideRange", "ParameterInsideRange", 0),
     ("ParameterOutsideRange", "ParameterOutsideRange", "ParameterOutsideRange", 1),
@@ -413,12 +404,6 @@ class NetworkParameters(bpy.types.PropertyGroup):
         if self.exists(parameter_name):
             return False
         self.parameters_float.add().name = parameter_name
-        print(">>> " + parameter_name)
-        print(self.parameters_float[len(self.parameters_float) - 1])
-        print(self.parameters_float[parameter_name])
-        print(self.parameters_float.find(parameter_name))
-        print(self.parameters_float.get(parameter_name, None))
-        print(self.parameters_float.get("something", None))
         return True
 
     def try_add_bool(self, parameter_name):

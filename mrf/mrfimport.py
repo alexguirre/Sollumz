@@ -138,9 +138,9 @@ def create_animation_tree_nodes(animation_tree: NetworkTree, mn: MoveNodeBase, n
         animation_tree.links.new(n_child0.outputs["output"], n.inputs["input0"])
         animation_tree.links.new(n_child1.outputs["output"], n.inputs["input1"])
     elif isinstance(mn, MoveNodeNBase):
-        for child in mn.children:
+        for i, child in enumerate(mn.children):
             n_child = create_animation_tree_nodes(animation_tree, child.node, network_root, parent_state)
-            animation_tree.links.new(n_child.outputs["output"], n.inputs["inputs"])
+            animation_tree.links.new(n_child.outputs["output"], n.inputs[f"input{i}"])
 
     if mn.type == MoveNodeStateMachine.type:
         n.state_machine_tree = create_state_machine_graph_tree(animation_tree.name, mn, network_root)

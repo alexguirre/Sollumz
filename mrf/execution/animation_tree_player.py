@@ -1,4 +1,6 @@
+import bl_math
 from ..nodes.nodes import *
+from ..properties import ATNodeOperation
 from .clip_player import ClipPlayer
 from .frame_buffer import FrameBuffer
 
@@ -17,6 +19,55 @@ class AnimationTreeContext:
         self.network.network_parameters.set(parameter_name, value)
 
 
+at_trace_enabled = True
+
+
+def at_trace(msg):
+    if at_trace_enabled:
+        print(msg)
+
+
+def evaluate_operation(ops: ATNodeOperation, context: AnimationTreeContext):
+    at_trace("--------------------------------")
+    stack = [0.0] * len(ops.operators)  # TODO: cache stacks?
+    stack_top = -1
+    for operator in ops.operators:
+        if operator.type == "PushLiteral":
+            stack_top += 1
+            stack[stack_top] = operator.value
+            at_trace(f"PushLiteral {operator.value}")
+        elif operator.type == "PushParameter":
+            stack_top += 1
+            stack[stack_top] = float(context.get_parameter(operator.parameter_name))
+            at_trace(f"PushParameter {operator.parameter_name}  ({stack[stack_top]})")
+        elif operator.type == "Add":
+            stack[stack_top - 1] += stack[stack_top]
+            stack_top -= 1
+            at_trace(f"+ ({stack[stack_top]})")
+        elif operator.type == "Multiply":
+            stack[stack_top - 1] *= stack[stack_top]
+            stack_top -= 1
+            at_trace(f"* ({stack[stack_top]})")
+        elif operator.type == "Remap":
+            v = stack[stack_top]
+            v_min = operator.min
+            v_max = operator.max
+            v_range_length = v_max - v_min
+            v = bl_math.clamp(v, v_min, v_max)
+            if v_range_length != 0.0:
+                # convert to 0.0-1.0 range
+                v = (v - v_min) / v_range_length
+            for r in operator.remap_ranges:
+                if v <= r.percent:
+                    # remap to new range
+                    v = r.min + r.length * v
+                    break
+            at_trace(f"remap {stack[stack_top]} -> {v}")
+            stack[stack_top] = v
+    at_trace(f"RESULT = {stack[stack_top]}")
+    at_trace("--------------------------------")
+    return stack[stack_top]
+
 def exec_node_update_clip(node, context: AnimationTreeContext):
     return node.clip_player.update(context.delta_time)
 
@@ -31,6 +82,17 @@ def exec_node_update_blend(node, context: AnimationTreeContext):
     frame2 = node.children[1].update(context)
     frame1.blend(frame2, node.blend_weight)
     return frame1
+
+
+def exec_node_update_blend_n(node, context: AnimationTreeContext):
+    frame = None
+    for child, weight in zip(reversed(node.children), reversed(node.blend_n_weights)):
+        child_frame = child.update(context)
+        if frame is None:
+            frame = child_frame  # how do we apply weight to the first frame?
+        else:
+            frame.blend(child_frame, weight)  # TODO: may need to normalize children weights
+    return frame
 
 
 def exec_node_update_identity(node, context: AnimationTreeContext):
@@ -48,7 +110,7 @@ exec_node_update_dict = {
     ATNodeMirror.bl_idname: exec_node_update_child_passthrough,
     ATNodeFrame.bl_idname: exec_node_update_identity,
     ATNodeIk.bl_idname: exec_node_update_identity,
-    ATNodeBlendN.bl_idname: exec_node_update_child_passthrough,
+    ATNodeBlendN.bl_idname: exec_node_update_blend_n,
     ATNodeClip.bl_idname: exec_node_update_clip,
     ATNodeExtrapolate.bl_idname: exec_node_update_child_passthrough,
     ATNodeExpression.bl_idname: exec_node_update_child_passthrough,
@@ -123,6 +185,28 @@ def exec_node_set_parameter_blend(node, context: AnimationTreeContext, parameter
         raise Exception("Unknown blend node parameter id: {}".format(parameter_id))
 
 
+def exec_node_get_parameter_blend_n(node, context: AnimationTreeContext, parameter_id, extra_arg):
+    if parameter_id == "BLENDN_FILTER":
+        return None
+    elif parameter_id == "BLENDN_CHILDWEIGHT":
+        return node.blend_n_weights[int(extra_arg)]
+    elif parameter_id == "BLENDN_CHILDFILTER":
+        return None
+    else:
+        raise Exception("Unknown blend node parameter id: {}".format(parameter_id))
+
+
+def exec_node_set_parameter_blend_n(node, context: AnimationTreeContext, parameter_id, extra_arg, value):
+    if parameter_id == "BLENDN_FILTER":
+        pass
+    elif parameter_id == "BLENDN_CHILDWEIGHT":
+        node.blend_n_weights[int(extra_arg)] = float(value)
+    elif parameter_id == "BLENDN_CHILDFILTER":
+        pass
+    else:
+        raise Exception("Unknown blend node parameter id: {}".format(parameter_id))
+
+
 exec_node_getset_parameter_default = (exec_node_get_parameter_default, exec_node_set_parameter_default)
 
 exec_node_getset_parameter_dict = {
@@ -136,7 +220,7 @@ exec_node_getset_parameter_dict = {
     ATNodeMirror.bl_idname: exec_node_getset_parameter_default,
     ATNodeFrame.bl_idname: exec_node_getset_parameter_default,
     ATNodeIk.bl_idname: exec_node_getset_parameter_default,
-    ATNodeBlendN.bl_idname: exec_node_getset_parameter_default,
+    ATNodeBlendN.bl_idname: (exec_node_get_parameter_blend_n, exec_node_set_parameter_blend_n),
     ATNodeClip.bl_idname: (exec_node_get_parameter_clip, exec_node_set_parameter_clip),
     ATNodeExtrapolate.bl_idname: exec_node_getset_parameter_default,
     ATNodeExpression.bl_idname: exec_node_getset_parameter_default,
@@ -162,7 +246,12 @@ def exec_node_init_clip(node, context: AnimationTreeContext):
 
     clip_prop = node.ui_node.clip
     if clip_prop.type == "LITERAL":
-        pass  # TODO: find clip from literal
+        if clip_prop.container_type == "ClipDictionary":
+            clip_dictionary_obj = bpy.data.objects.get(clip_prop.container_name, None)
+            clip_obj = bpy.data.objects.get(clip_prop.name, None)  # TODO: look in clip dictionary instead
+            node.clip_player.clip = clip_obj
+        else:
+            pass  # TODO: find clip from literal
     elif clip_prop.type == "PARAMETER":
         node.clip_player.clip = context.get_parameter(clip_prop.parameter)
 
@@ -202,6 +291,18 @@ def exec_node_init_blend(node, context: AnimationTreeContext):
         node.blend_weight = context.get_parameter(weight_prop.parameter)
 
 
+def exec_node_init_blend_n(node, context: AnimationTreeContext):
+    # node.blend_filter = None
+    node.blend_n_weights = [0.0] * len(node.children)
+
+    # TODO: blend_n_weights
+    # weight_prop = node.ui_node.weight
+    # if weight_prop.type == "LITERAL":
+    #     node.blend_weight = weight_prop.value
+    # elif weight_prop.type == "PARAMETER":
+    #     node.blend_weight = context.get_parameter(weight_prop.parameter)
+
+
 exec_node_init_dict = {
     ATNodeOutputAnimation.bl_idname: None,
     ATNodeStateMachine.bl_idname: exec_node_init_default,
@@ -213,7 +314,7 @@ exec_node_init_dict = {
     ATNodeMirror.bl_idname: exec_node_init_default,
     ATNodeFrame.bl_idname: exec_node_init_default,
     ATNodeIk.bl_idname: exec_node_init_default,
-    ATNodeBlendN.bl_idname: exec_node_init_default,
+    ATNodeBlendN.bl_idname: exec_node_init_blend_n,
     ATNodeClip.bl_idname: exec_node_init_clip,
     ATNodeExtrapolate.bl_idname: exec_node_init_default,
     ATNodeExpression.bl_idname: exec_node_init_default,
@@ -261,6 +362,10 @@ class ATExecNode:
             value = context.get_parameter(ip.source_parameter_name)
             self.exec_node_set_parameter(self, context,
                                          ip.target_node_parameter_id, ip.target_node_parameter_extra_arg, value)
+        for ops in self.ui_node.operations:
+            value = evaluate_operation(ops, context)
+            self.exec_node_set_parameter(self, context,
+                                         ops.node_parameter_id, ops.node_parameter_extra_arg, value)
 
     def _post_update(self, context: AnimationTreeContext):
         """
@@ -298,7 +403,7 @@ def build_animation_tree_for_execution(animation_tree):
             to_node = ATExecNode(ui_to_node)
             ui_node_to_exec_node[ui_to_node] = to_node
 
-        to_node.children.append(from_node)
+        to_node.children.append(from_node)  # TODO: verify that the children order is correct
 
     output_node = None
     for ui_node, node in ui_node_to_exec_node.items():

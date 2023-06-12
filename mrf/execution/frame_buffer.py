@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def quaternion_multiply(a, b):  # return in q1
+def quaternion_multiply(a, b):  # return in a
     # https://github.com/blender/blender/blob/c89461a2bc844a459f76a7fb1808739d44ba378f/source/blender/blenlib/intern/math_rotation.c#L46
     t0 = a[:, 0] * b[:, 0] - a[:, 1] * b[:, 1] - a[:, 2] * b[:, 2] - a[:, 3] * b[:, 3]
     t1 = a[:, 0] * b[:, 1] + a[:, 1] * b[:, 0] + a[:, 2] * b[:, 3] - a[:, 3] * b[:, 2]
@@ -16,7 +16,7 @@ def quaternion_dot(a, b):  # return new array
     return a[:, 0] * b[:, 0] + a[:, 1] * b[:, 1] + a[:, 2] * b[:, 2] + a[:, 3] * b[:, 3]
 
 
-def quaternion_slerp(a, b, t):  # return in q1
+def quaternion_slerp(a, b, t):  # return in a
     # https://github.com/blender/blender/blob/c89461a2bc844a459f76a7fb1808739d44ba378f/source/blender/blenlib/intern/math_rotation.c#L876
     cosom = quaternion_dot(a, b)
 
@@ -97,6 +97,6 @@ class FrameBuffer:
         self.scale_data *= other.scale_data
 
     def blend(self, other, weight):
-        self.position_data = self.position_data * (1.0 - weight) + other.position_data * weight
+        self.position_data += weight * (other.position_data - self.position_data)
         quaternion_slerp(self.rotation_data, other.rotation_data, weight)
-        self.scale_data = self.scale_data * (1.0 - weight) + other.scale_data * weight
+        self.scale_data += weight * (other.scale_data - self.scale_data)

@@ -96,9 +96,10 @@ class NetworkPlayer:
         if frame <= self.frame_prev:  # backwards execution is not supported
             return
 
-        # print("NetworkPlayer[frame {}]".format(frame))
+        print(f"============ NetworkPlayer[frame {frame}] ============")
         num_updates = frame - self.frame_prev
         for i in range(num_updates):
             self.frame_curr += 1
             self.frame_update()
             self.frame_prev = self.frame_curr
+        print("======================================================")

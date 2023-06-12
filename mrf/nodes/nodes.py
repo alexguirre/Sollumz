@@ -57,11 +57,11 @@ class AnimationTreeNodeBase(bpy.types.Node):
                     # operations only work on floats
                     network.network_parameters.try_add_float(operator.parameter_name)
 
-    def create_input(self, socket_name, socket_label):
+    def create_input(self, socket_name, socket_label, socket_type=ATNodeSocket.bl_idname):
         if self.inputs.get(socket_name):
             return None
 
-        input = self.inputs.new(NodeSocket.bl_idname, socket_name)
+        input = self.inputs.new(socket_type, socket_name)
         input.text = socket_label
         return input
 
@@ -70,11 +70,11 @@ class AnimationTreeNodeBase(bpy.types.Node):
         if input:
             self.inputs.remove(input)
 
-    def create_output(self, socket_name, socket_label):
+    def create_output(self, socket_name, socket_label, socket_type=ATNodeSocket.bl_idname):
         if self.outputs.get(socket_name):
             return None
 
-        output = self.outputs.new(NodeSocket.bl_idname, socket_name)
+        output = self.outputs.new(socket_type, socket_name)
         output.text = socket_label
         return input
 
@@ -82,9 +82,6 @@ class AnimationTreeNodeBase(bpy.types.Node):
         output = self.outputs.get(socket_name)
         if output:
             self.outputs.remove(output)
-
-    def exec_update(self, delta_time):
-        pass
 
 
 class ATNodeOutputAnimation(AnimationTreeNodeBase):
@@ -96,9 +93,6 @@ class ATNodeOutputAnimation(AnimationTreeNodeBase):
 
     def init_from_xml(self, node_xml):
         raise Exception("NodeOutputAnimation cannot be initialized from XML")
-
-    def exec_update(self, delta_time):
-        pass
 
 
 # 0 inputs, 1 output
@@ -134,9 +128,9 @@ class ATNodeNx1(AnimationTreeNodeBase):
 
     def init(self, context):
         self.create_output("output", "Out")
-        input = self.create_input("inputs", "In")
-        # input.is_multi_input = True
-        input.link_limit = 63  # .mrf uses 6 bits to store the children count
+        # even though .mrf uses 6 bits to store the children count, some game code arrays are hardcoded to 8
+        for i in range(8):
+            self.create_input(f"input{i}", f"In {i+1}", socket_type=ATNodeNSocket.bl_idname).hide = True
 
 
 # ANIMATION TREE NODES
@@ -319,16 +313,14 @@ class ATNodeBlendN(ATNodeNx1):
     synchronizer_type: SynchronizerTypeProperty(name="Synchronizer Type")
     synchronizer_tag_flags: bpy.props.StringProperty(name="Synchronizer Tag Flags", default="")
     zero_destination: bpy.props.BoolProperty(name="Zero Destination", default=False)
-    children_properties: bpy.props.CollectionProperty(name="Children Properties", type=ATNodeNChildProperties)
 
     def init_from_xml(self, node_xml: MoveNodeBlendN):
         self.frame_filter.set(node_xml.frame_filter)
         self.synchronizer_type = node_xml.synchronizer_type or "None"
         self.synchronizer_tag_flags = node_xml.synchronizer_tag_flags
         self.zero_destination = node_xml.zero_destination
-        self.children_properties.clear()
-        for c in node_xml.children:
-            self.children_properties.add().set(c)
+        for i, c in enumerate(node_xml.children):
+            self.inputs[f"input{i}"].set(c)
 
     def add_required_parameters_to_network(self, network):
         super().add_required_parameters_to_network(network)
@@ -340,11 +332,6 @@ class ATNodeBlendN(ATNodeNx1):
         if self.synchronizer_type == "Tag":
             layout.prop(self, "synchronizer_tag_flags")
         layout.prop(self, "zero_destination")
-        # layout.label(text="Children Properties")
-        # for c in self.children_properties:
-        #     box = layout.box()
-        #     c.weight.draw("Weight", box)
-        #     c.frame_filter.draw("Frame Filter", box)
 
 
 class ATNodeClip(ATNode0x1):
@@ -453,16 +440,14 @@ class ATNodeAddN(ATNodeNx1):
     synchronizer_type: SynchronizerTypeProperty(name="Synchronizer Type")
     synchronizer_tag_flags: bpy.props.StringProperty(name="Synchronizer Tag Flags", default="")
     zero_destination: bpy.props.BoolProperty(name="Zero Destination", default=False)
-    children_properties: bpy.props.CollectionProperty(name="Children Properties", type=ATNodeNChildProperties)
 
     def init_from_xml(self, node_xml: MoveNodeAddN):
         self.frame_filter.set(node_xml.frame_filter)
         self.synchronizer_type = node_xml.synchronizer_type or "None"
         self.synchronizer_tag_flags = node_xml.synchronizer_tag_flags
         self.zero_destination = node_xml.zero_destination
-        self.children_properties.clear()
-        for c in node_xml.children:
-            self.children_properties.add().set(c)
+        for i, c in enumerate(node_xml.children):
+            self.inputs[f"input{i}"].set(c)
 
     def add_required_parameters_to_network(self, network):
         super().add_required_parameters_to_network(network)
@@ -474,11 +459,6 @@ class ATNodeAddN(ATNodeNx1):
         if self.synchronizer_type == "Tag":
             layout.prop(self, "synchronizer_tag_flags")
         layout.prop(self, "zero_destination")
-        # layout.label(text="Children Properties")
-        # for c in self.children_properties:
-        #     box = layout.box()
-        #     c.weight.draw("Weight", box)
-        #     c.frame_filter.draw("Frame Filter", box)
 
 
 class ATNodeIdentity(ATNode0x1):
@@ -513,16 +493,14 @@ class ATNodeMergeN(ATNodeNx1):
     synchronizer_type: SynchronizerTypeProperty(name="Synchronizer Type")
     synchronizer_tag_flags: bpy.props.StringProperty(name="Synchronizer Tag Flags", default="")
     zero_destination: bpy.props.BoolProperty(name="Zero Destination", default=False)
-    children_properties: bpy.props.CollectionProperty(name="Children Properties", type=ATNodeNChildProperties)
 
     def init_from_xml(self, node_xml: MoveNodeMergeN):
         self.frame_filter.set(node_xml.frame_filter)
         self.synchronizer_type = node_xml.synchronizer_type or "None"
         self.synchronizer_tag_flags = node_xml.synchronizer_tag_flags
         self.zero_destination = node_xml.zero_destination
-        self.children_properties.clear()
-        for c in node_xml.children:
-            self.children_properties.add().set(c)
+        for i, c in enumerate(node_xml.children):
+            self.inputs[f"input{i}"].set(c)
 
     def add_required_parameters_to_network(self, network):
         super().add_required_parameters_to_network(network)
@@ -534,11 +512,6 @@ class ATNodeMergeN(ATNodeNx1):
         if self.synchronizer_type == "Tag":
             layout.prop(self, "synchronizer_tag_flags")
         layout.prop(self, "zero_destination")
-        # layout.label(text="Children Properties")
-        # for c in self.children_properties:
-        #     box = layout.box()
-        #     c.weight.draw("Weight", box)
-        #     c.frame_filter.draw("Frame Filter", box)
 
 
 class ATNodeInvalid(ATNode0x1):
