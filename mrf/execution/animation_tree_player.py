@@ -27,11 +27,10 @@ def exec_node_update_child_passthrough(node, context: AnimationTreeContext):
 
 
 def exec_node_update_blend(node, context: AnimationTreeContext):
-    return exec_node_update_child_passthrough(node, context)
-    # frame1 = node.children[0].update(context)
-    # frame2 = node.children[1].update(context)
-    # frame1.blend(frame2, context.network.debug_blend_weight)  # TODO: get blend weight value
-    # return frame1
+    frame1 = node.children[0].update(context)
+    frame2 = node.children[1].update(context)
+    frame1.blend(frame2, node.blend_weight)
+    return frame1
 
 
 def exec_node_update_identity(node, context: AnimationTreeContext):
@@ -106,6 +105,24 @@ def exec_node_set_parameter_clip(node, context: AnimationTreeContext, parameter_
         raise Exception("Unknown clip node parameter id: {}".format(parameter_id))
 
 
+def exec_node_get_parameter_blend(node, context: AnimationTreeContext, parameter_id, extra_arg):
+    if parameter_id == "BLEND_FILTER":
+        return None
+    elif parameter_id == "BLEND_WEIGHT":
+        return node.blend_weight
+    else:
+        raise Exception("Unknown blend node parameter id: {}".format(parameter_id))
+
+
+def exec_node_set_parameter_blend(node, context: AnimationTreeContext, parameter_id, extra_arg, value):
+    if parameter_id == "BLEND_FILTER":
+        pass
+    elif parameter_id == "BLEND_WEIGHT":
+        node.blend_weight = float(value)
+    else:
+        raise Exception("Unknown blend node parameter id: {}".format(parameter_id))
+
+
 exec_node_getset_parameter_default = (exec_node_get_parameter_default, exec_node_set_parameter_default)
 
 exec_node_getset_parameter_dict = {
@@ -113,7 +130,7 @@ exec_node_getset_parameter_dict = {
     ATNodeStateMachine.bl_idname: exec_node_getset_parameter_default,
     ATNodeTail.bl_idname: exec_node_getset_parameter_default,
     ATNodeInlinedStateMachine.bl_idname: exec_node_getset_parameter_default,
-    ATNodeBlend.bl_idname: exec_node_getset_parameter_default,
+    ATNodeBlend.bl_idname: (exec_node_get_parameter_blend, exec_node_set_parameter_blend),
     ATNodeAddSubtract.bl_idname: exec_node_getset_parameter_default,
     ATNodeFilter.bl_idname: exec_node_getset_parameter_default,
     ATNodeMirror.bl_idname: exec_node_getset_parameter_default,
@@ -174,12 +191,23 @@ def exec_node_init_clip(node, context: AnimationTreeContext):
         node.clip_player.looped = context.get_parameter(looped_prop.parameter)
 
 
+def exec_node_init_blend(node, context: AnimationTreeContext):
+    # node.blend_filter = None
+    node.blend_weight = 0.0
+
+    weight_prop = node.ui_node.weight
+    if weight_prop.type == "LITERAL":
+        node.blend_weight = weight_prop.value
+    elif weight_prop.type == "PARAMETER":
+        node.blend_weight = context.get_parameter(weight_prop.parameter)
+
+
 exec_node_init_dict = {
     ATNodeOutputAnimation.bl_idname: None,
     ATNodeStateMachine.bl_idname: exec_node_init_default,
     ATNodeTail.bl_idname: exec_node_init_default,
     ATNodeInlinedStateMachine.bl_idname: exec_node_init_default,
-    ATNodeBlend.bl_idname: exec_node_init_default,
+    ATNodeBlend.bl_idname: exec_node_init_blend,
     ATNodeAddSubtract.bl_idname: exec_node_init_default,
     ATNodeFilter.bl_idname: exec_node_init_default,
     ATNodeMirror.bl_idname: exec_node_init_default,
