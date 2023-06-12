@@ -328,8 +328,43 @@ class NetworkParameterBool(bpy.types.PropertyGroup):
 
 
 class NetworkParameterClip(bpy.types.PropertyGroup):
+    def poll_clip_dictionaries(self, obj):
+        return obj.sollum_type == SollumType.CLIP_DICTIONARY
+
+    def poll_clips(self, obj):
+        return (self.clip_dictionary is not None and
+                obj.sollum_type == SollumType.CLIP and
+                obj.parent is not None and
+                self.clip_dictionary == obj.parent.parent)
+
+    def on_clip_dictionary_update(self, context):
+        # clear the clip field when the clip dictionary is changed
+        if self.clip_dictionary != self.prev_clip_dictionary:
+            self.clip = None
+        self.prev_clip_dictionary = self.clip_dictionary
+
     name: bpy.props.StringProperty(name="Name", default="")
-    value: bpy.props.PointerProperty(name="Value", type=bpy.types.Object, poll=lambda s, o: o.sollum_type == SollumType.CLIP)
+    clip_dictionary: bpy.props.PointerProperty(name="Clip Dictionary", type=bpy.types.Object,
+                                               poll=poll_clip_dictionaries, update=on_clip_dictionary_update)
+    clip: bpy.props.PointerProperty(name="Clip", type=bpy.types.Object, poll=poll_clips)
+
+    # used to detect when the clip dictionary is changed
+    prev_clip_dictionary: bpy.props.PointerProperty(type=bpy.types.Object)
+
+    @property
+    def value(self):
+        return self.clip
+
+    @value.setter
+    def value(self, value):
+        if value is None:
+            self.clip = None
+            self.clip_dictionary = None
+            return
+
+        assert value.sollum_type == SollumType.CLIP
+        self.clip_dictionary = value.parent.parent
+        self.clip = value
 
 
 class NetworkParameterAsset(bpy.types.PropertyGroup):  # TODO: may need more specific type (expressions, frame filters, etc.)

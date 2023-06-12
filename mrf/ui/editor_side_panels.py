@@ -72,7 +72,8 @@ class NetworkPropertiesPanel(bpy.types.Panel):
         b.label(text="Clips")
         for param in node_tree.network_parameters.parameters_clip:
             r = b.row(align=True)
-            r.prop(param, "value", text=param.name)
+            r.prop(param, "clip_dictionary", text=param.name)
+            r.prop(param, "clip", text="")
             r.operator(delete_network_parameter_op, text="", icon="X").parameter_name = param.name
         draw_add_network_parameter(b, "ui_network_param_clip_new_name", "clip")
         b.separator()
