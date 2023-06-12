@@ -10,21 +10,15 @@ class AnimationTreeContext:
         self.armature_obj = armature_obj
         self.delta_time = 0.0
 
+    def get_parameter(self, parameter_name):
+        return self.network.network_parameters.get(parameter_name)
 
-# _tmp_idx = 0
-def get_clip_player(node, context: AnimationTreeContext):
-    clip_player = getattr(node, "exec_clip_player", None)
-    if clip_player is None:
-        # global _tmp_idx
-        # clip_obj = bpy.data.objects[("sweep_high_full", "sweep_med_full")[_tmp_idx]]  # TODO: get clip
-        # _tmp_idx ^= 1
-        clip_player = ClipPlayer(context.armature_obj)
-        node.exec_clip_player = clip_player
-    return clip_player
+    def set_parameter(self, parameter_name, value):
+        self.network.network_parameters.set(parameter_name, value)
 
 
 def exec_node_update_clip(node, context: AnimationTreeContext):
-    return get_clip_player(node, context).update(context.delta_time)
+    return node.clip_player.update(context.delta_time)
 
 
 def exec_node_update_child_passthrough(node, context: AnimationTreeContext):
@@ -84,30 +78,30 @@ def exec_node_set_parameter_default(node, context: AnimationTreeContext, paramet
 
 def exec_node_get_parameter_clip(node, context: AnimationTreeContext, parameter_id, extra_arg):
     if parameter_id == "CLIP_CLIP":
-        return get_clip_player(node, context).clip
+        return node.clip_player.clip
     elif parameter_id == "CLIP_PHASE":
-        return get_clip_player(node, context).phase
+        return node.clip_player.phase
     elif parameter_id == "CLIP_RATE":
-        return get_clip_player(node, context).rate
+        return node.clip_player.rate
     elif parameter_id == "CLIP_DELTA":
-        return get_clip_player(node, context).delta
+        return node.clip_player.delta
     elif parameter_id == "CLIP_LOOPED":
-        return get_clip_player(node, context).looped
+        return node.clip_player.looped
     else:
         raise Exception("Unknown clip node parameter id: {}".format(parameter_id))
 
 
 def exec_node_set_parameter_clip(node, context: AnimationTreeContext, parameter_id, extra_arg, value):
     if parameter_id == "CLIP_CLIP":
-        get_clip_player(node, context).clip = value
+        node.clip_player.clip = value
     elif parameter_id == "CLIP_PHASE":
-        get_clip_player(node, context).phase = float(value)
+        node.clip_player.phase = float(value)
     elif parameter_id == "CLIP_RATE":
-        get_clip_player(node, context).rate = float(value)
+        node.clip_player.rate = float(value)
     elif parameter_id == "CLIP_DELTA":
-        get_clip_player(node, context).delta = float(value)
+        node.clip_player.delta = float(value)
     elif parameter_id == "CLIP_LOOPED":
-        get_clip_player(node, context).looped = bool(value)
+        node.clip_player.looped = bool(value)
     else:
         raise Exception("Unknown clip node parameter id: {}".format(parameter_id))
 
@@ -142,14 +136,86 @@ exec_node_getset_parameter_dict = {
 }
 
 
+def exec_node_init_default(node, context: AnimationTreeContext):
+    pass
+
+
+def exec_node_init_clip(node, context: AnimationTreeContext):
+    node.clip_player = ClipPlayer(context.armature_obj)
+
+    clip_prop = node.ui_node.clip
+    if clip_prop.type == "LITERAL":
+        pass  # TODO: find clip from literal
+    elif clip_prop.type == "PARAMETER":
+        node.clip_player.clip = context.get_parameter(clip_prop.parameter)
+
+    phase_prop = node.ui_node.phase
+    if phase_prop.type == "LITERAL":
+        node.clip_player.phase = phase_prop.value
+    elif phase_prop.type == "PARAMETER":
+        node.clip_player.phase = context.get_parameter(phase_prop.parameter)
+
+    rate_prop = node.ui_node.rate
+    if rate_prop.type == "LITERAL":
+        node.clip_player.rate = rate_prop.value
+    elif rate_prop.type == "PARAMETER":
+        node.clip_player.rate = context.get_parameter(rate_prop.parameter)
+
+    delta_prop = node.ui_node.delta
+    if delta_prop.type == "LITERAL":
+        node.clip_player.delta = delta_prop.value
+    elif delta_prop.type == "PARAMETER":
+        node.clip_player.delta = context.get_parameter(delta_prop.parameter)
+
+    looped_prop = node.ui_node.looped
+    if looped_prop.type == "LITERAL":
+        node.clip_player.looped = looped_prop.value
+    elif looped_prop.type == "PARAMETER":
+        node.clip_player.looped = context.get_parameter(looped_prop.parameter)
+
+
+exec_node_init_dict = {
+    ATNodeOutputAnimation.bl_idname: None,
+    ATNodeStateMachine.bl_idname: exec_node_init_default,
+    ATNodeTail.bl_idname: exec_node_init_default,
+    ATNodeInlinedStateMachine.bl_idname: exec_node_init_default,
+    ATNodeBlend.bl_idname: exec_node_init_default,
+    ATNodeAddSubtract.bl_idname: exec_node_init_default,
+    ATNodeFilter.bl_idname: exec_node_init_default,
+    ATNodeMirror.bl_idname: exec_node_init_default,
+    ATNodeFrame.bl_idname: exec_node_init_default,
+    ATNodeIk.bl_idname: exec_node_init_default,
+    ATNodeBlendN.bl_idname: exec_node_init_default,
+    ATNodeClip.bl_idname: exec_node_init_clip,
+    ATNodeExtrapolate.bl_idname: exec_node_init_default,
+    ATNodeExpression.bl_idname: exec_node_init_default,
+    ATNodeCapture.bl_idname: exec_node_init_default,
+    ATNodeProxy.bl_idname: exec_node_init_default,
+    ATNodeAddN.bl_idname: exec_node_init_default,
+    ATNodeIdentity.bl_idname: exec_node_init_default,
+    ATNodeMerge.bl_idname: exec_node_init_default,
+    ATNodePose.bl_idname: exec_node_init_default,
+    ATNodeMergeN.bl_idname: exec_node_init_default,
+    ATNodeInvalid.bl_idname: exec_node_init_default,
+    ATNodeJointLimit.bl_idname: exec_node_init_default,
+    ATNodeSubNetwork.bl_idname: exec_node_init_default,
+}
+
+
 class ATExecNode:
     def __init__(self, ui_node):
         self.ui_node = ui_node
         self.children = []
+        self.exec_node_init = exec_node_init_dict[ui_node.bl_idname]
         self.exec_node_update = exec_node_update_dict[ui_node.bl_idname]
         getset_parameter = exec_node_getset_parameter_dict[ui_node.bl_idname]
         self.exec_node_get_parameter = getset_parameter[0]
         self.exec_node_set_parameter = getset_parameter[1]
+
+    def init(self, context: AnimationTreeContext):
+        self.exec_node_init(self, context)
+        for child in self.children:
+            child.init(context)
 
     def update(self, context: AnimationTreeContext):
         self._pre_update(context)
@@ -164,7 +230,7 @@ class ATExecNode:
          - operations
         """
         for ip in self.ui_node.input_parameters:
-            value = context.network.network_parameters.get(ip.source_parameter_name)
+            value = context.get_parameter(ip.source_parameter_name)
             self.exec_node_set_parameter(self, context,
                                          ip.target_node_parameter_id, ip.target_node_parameter_extra_arg, value)
 
@@ -177,8 +243,7 @@ class ATExecNode:
         for op in self.ui_node.output_parameters:
             value = self.exec_node_get_parameter(self, context,
                                                  op.source_node_parameter_id, op.source_node_parameter_extra_arg)
-            context.network.network_parameters.set(op.target_parameter_name, value)
-
+            context.set_parameter(op.target_parameter_name, value)
 
     def __str__(self):
         import textwrap
@@ -228,8 +293,16 @@ class AnimationTreePlayer:
 
         self.animation_tree = animation_tree
         self.root_node = build_animation_tree_for_execution(animation_tree)
+        self.initialized = False
         self.context = AnimationTreeContext(animation_tree.network_root, animation_tree, armature_obj)
 
+    def init(self):
+        self.root_node.init(self.context)
+        self.initialized = True
+
     def update(self, delta_time):
+        if not self.initialized:
+            self.init()
+
         self.context.delta_time = delta_time
         return self.root_node.update(self.context)
