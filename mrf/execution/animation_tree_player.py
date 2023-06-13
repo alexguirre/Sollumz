@@ -10,6 +10,7 @@ class AnimationTreeContext:
         self.network = network
         self.animation_tree = animation_tree
         self.armature_obj = armature_obj
+        self.num_bones = len(self.armature_obj.pose.bones)
         self.delta_time = 0.0
 
     def get_parameter(self, parameter_name):
@@ -85,18 +86,46 @@ def exec_node_update_blend(node, context: AnimationTreeContext):
 
 
 def exec_node_update_blend_n(node, context: AnimationTreeContext):
-    frame = None
-    for child, weight in zip(reversed(node.children), reversed(node.blend_n_weights)):
-        child_frame = child.update(context)
-        if frame is None:
-            frame = child_frame  # how do we apply weight to the first frame?
+    num_children = len(node.children)
+    if num_children == 0:
+        return FrameBuffer(context.num_bones)
+    elif num_children == 1:
+        return node.children[0].update(context)
+
+    # normalize and calculate weights such that we can blend in pairs
+    # weights are stored in reversed order and the last weight can be ignored
+    #  0-1 -> weights[-2], 1-2 -> weights[-3], 2-3 -> weights[-4]...
+    weights = node.blend_n_weights.copy()
+    weights_total = min(sum(weights), 1.0)
+    weights_accumulator = 1.0 - weights_total if weights_total < 1.0 else 0.0
+
+    for i in reversed(range(len(weights))):
+        w = weights[i]
+        weights_accumulator += w
+        if weights_accumulator < 0.001:
+            weights[i] = 1.0
+            weights_accumulator = 0.0
         else:
-            frame.blend(child_frame, weight)  # TODO: may need to normalize children weights
-    return frame
+            weight_normalized = w / weights_accumulator
+            weight_normalized = bl_math.clamp(weight_normalized, 0.0, 1.0)
+            weights[i] = 1.0 - weight_normalized
+
+    # at_trace("update_blend_n")
+    # at_trace(f"  orig weights = {node.blend_n_weights}")
+    # at_trace(f"   new weights = {weights}")
+
+    frames = [child.update(context) for child in node.children]
+
+    # blend in pairs, storing results in the second frame, such that the last frame is the final result
+    #  0-1, 1-2, 2-3...
+    for i in range(len(weights) - 1):
+        frames[i + 1].blend(frames[i], weights[-2 - i])
+
+    return frames[-1]
 
 
 def exec_node_update_identity(node, context: AnimationTreeContext):
-    return FrameBuffer(128)
+    return FrameBuffer(context.num_bones)
 
 
 exec_node_update_dict = {
