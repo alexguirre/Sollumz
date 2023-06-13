@@ -114,7 +114,7 @@ class SOLLUMZ_UL_MOVE_NETWORK_SMConditionsList(bpy.types.UIList):
     def draw_item(
         self, context, layout, data, item, icon, active_data, active_propname, index
     ):
-        item.draw(layout)
+        item.draw(context, layout)
 
 
 class StateMachineActiveTransitionPanel(bpy.types.Panel):
@@ -151,12 +151,13 @@ class StateMachineActiveTransitionPanel(bpy.types.Panel):
         if transition.synchronizer_type == "Tag":
             self.layout.prop(transition, "synchronizer_tag_flags")
         # TODO: disable parameters support for this frame filter
-        transition.frame_filter.draw("Frame Filter", self.layout)
+        transition.frame_filter.draw("Frame Filter", context, self.layout)
         self.layout.prop(transition, "unk_flag2_detach_update_observers")
         self.layout.prop(transition, "unk_flag18")
         self.layout.prop(transition, "unk_flag19")
         self.layout.label(text="Conditions:")
-        self.layout.template_list("SOLLUMZ_UL_MOVE_NETWORK_SMConditionsList", "conditions", transition, "conditions", transition, "ui_active_condition_index")
+        self.layout.template_list(SOLLUMZ_UL_MOVE_NETWORK_SMConditionsList.bl_idname, "conditions",
+                                  transition, "conditions", transition, "ui_active_condition_index")
 
 
 class StateMachinePropertiesPanel(bpy.types.Panel):

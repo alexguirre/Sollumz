@@ -246,15 +246,18 @@ class SMConditionProperties(bpy.types.PropertyGroup):
             self.parameter = v.parameter
             self.value_bool = v.value
 
-    def draw(self, layout):
+    def draw(self, context, layout):
+        network = context.space_data.edit_tree
+        network = network.network_root or network
+
         layout.prop(self, "type")
         if self.type in {"ParameterInsideRange", "ParameterOutsideRange"}:
-            layout.prop(self, "parameter")
+            layout.prop_search(self, "parameter", network.network_parameters, "parameters_float", text="")
             row = layout.row()
             row.prop(self, "min")
             row.prop(self, "max")
         elif self.type in {"ParameterGreaterThan", "ParameterGreaterOrEqual", "ParameterLessThan", "ParameterLessOrEqual"}:
-            layout.prop(self, "parameter")
+            layout.prop_search(self, "parameter", network.network_parameters, "parameters_float", text="")
             layout.prop(self, "value_float")
         elif self.type in {"TimeGreaterThan", "TimeLessThan"}:
             layout.prop(self, "value_float")
@@ -262,13 +265,13 @@ class SMConditionProperties(bpy.types.PropertyGroup):
             layout.prop(self, "bit_position")
             layout.prop(self, "value_bool", text="Invert")
         elif self.type in {"EventOccurred"}:
-            layout.prop(self, "parameter", text="Event")
+            layout.prop_search(self, "parameter", network.network_parameters, "parameters_bool", text="Event")
             layout.prop(self, "value_bool", text="Invert")
         elif self.type in {"BoolParameterExists"}:
-            layout.prop(self, "parameter")
+            layout.prop_search(self, "parameter", network.network_parameters, "parameters_bool", text="")
             layout.prop(self, "value_bool", text="Invert")
         elif self.type in {"BoolParameterEquals"}:
-            layout.prop(self, "parameter")
+            layout.prop_search(self, "parameter", network.network_parameters, "parameters_bool", text="")
             layout.prop(self, "value_bool")
 
 

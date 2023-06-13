@@ -18,6 +18,9 @@ class StateMachineNodeBase(bpy.types.Node):
     def poll(cls, ntree):
         return ntree.bl_idname == NetworkTree.bl_idname and ntree.network_tree_type in {"ROOT", "STATE_MACHINE"}
 
+    def add_required_parameters_to_network(self, network):
+        pass
+
 
 class AnimationTreeNodeBase(bpy.types.Node):
     """
@@ -608,6 +611,22 @@ class SMNodeStateBase(StateMachineNodeBase):
         t = self.transitions.add()
         t.target_state = target_state.name
         t.set(transition_xml)
+
+    def add_required_parameters_to_network(self, network):
+        super().add_required_parameters_to_network(network)
+        for t in self.transitions:
+            if t.duration_parameter_name != "":
+                network.network_parameters.try_add_float(t.duration_parameter_name)
+            if t.progress_parameter_name != "":
+                network.network_parameters.try_add_float(t.progress_parameter_name)
+            network.try_add_parameter(t.frame_filter)
+            for c in t.conditions:
+                if c.type in {"ParameterInsideRange", "ParameterOutsideRange",
+                              "ParameterGreaterThan", "ParameterGreaterOrEqual",
+                              "ParameterLessThan", "ParameterLessOrEqual"}:
+                    network.network_parameters.try_add_float(c.parameter)
+                elif c.type in {"EventOccurred", "BoolParameterExists", "BoolParameterEquals"}:
+                    network.network_parameters.try_add_bool(c.parameter)
 
     def draw_buttons(self, context, layout):
         # layout.template_list("UI_UL_list", "Transitions", self, "transitions", self, "ui_active_transition_index")
