@@ -69,6 +69,7 @@ def evaluate_operation(ops: ATNodeOperation, context: AnimationTreeContext):
     at_trace("--------------------------------")
     return stack[stack_top]
 
+
 def exec_node_update_clip(node, context: AnimationTreeContext):
     return node.clip_player.update(context.delta_time)
 
@@ -124,13 +125,17 @@ def exec_node_update_blend_n(node, context: AnimationTreeContext):
     return frames[-1]
 
 
+def exec_node_update_state_machine(node, context: AnimationTreeContext):
+    return node.state_machine_player.update(context.delta_time)
+
+
 def exec_node_update_identity(node, context: AnimationTreeContext):
     return FrameBuffer(context.num_bones)
 
 
 exec_node_update_dict = {
     ATNodeOutputAnimation.bl_idname: None,
-    ATNodeStateMachine.bl_idname: exec_node_update_identity,
+    ATNodeStateMachine.bl_idname: exec_node_update_state_machine,
     ATNodeTail.bl_idname: exec_node_update_identity,
     ATNodeInlinedStateMachine.bl_idname: exec_node_update_identity,
     ATNodeBlend.bl_idname: exec_node_update_blend,
@@ -332,9 +337,14 @@ def exec_node_init_blend_n(node, context: AnimationTreeContext):
     #     node.blend_weight = context.get_parameter(weight_prop.parameter)
 
 
+def exec_node_init_state_machine(node, context: AnimationTreeContext):
+    from .state_machine_player import StateMachinePlayer
+    node.state_machine_player = StateMachinePlayer(node.ui_node.state_machine_tree, context.armature_obj)
+
+
 exec_node_init_dict = {
     ATNodeOutputAnimation.bl_idname: None,
-    ATNodeStateMachine.bl_idname: exec_node_init_default,
+    ATNodeStateMachine.bl_idname: exec_node_init_state_machine,
     ATNodeTail.bl_idname: exec_node_init_default,
     ATNodeInlinedStateMachine.bl_idname: exec_node_init_default,
     ATNodeBlend.bl_idname: exec_node_init_blend,

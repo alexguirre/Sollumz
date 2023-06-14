@@ -4,14 +4,15 @@ from ..nodes.node_tree import NetworkTree
 from ...tools.blenderhelper import get_armature_obj
 from .clip_player import ClipPlayer
 from .animation_tree_player import AnimationTreePlayer
+from .state_machine_player import StateMachinePlayer
 
 class NetworkPlayer:
     def __init__(self, network: NetworkTree):
         assert network.network_tree_type == "ROOT"
 
         self.network = network
-        self.animation_tree_to_preview = None
-        self.animation_tree_player = None
+        self.tree_to_preview = None  # ANIMATION_TREE or STATE_MACHINE
+        self.tree_player = None  # AnimationTreePlayer or StateMachinePlayer
         self.armature = None
         self.armature_obj = None
         self.frame_changed_handler = lambda scene: self.frame_changed(scene)
@@ -29,14 +30,31 @@ class NetworkPlayer:
         assert not self.is_playing, "Cannot change animation tree while playing."
         assert self.armature is not None and self.armature_obj is not None, "Armature must be set."
 
-        self.animation_tree_to_preview = animation_tree
-        self.animation_tree_player = AnimationTreePlayer(animation_tree, self.armature_obj)
+        self.tree_to_preview = animation_tree
+        self.tree_player = AnimationTreePlayer(animation_tree, self.armature_obj)
 
     def clear_animation_tree_to_preview(self):
         assert not self.is_playing, "Cannot change animation tree while playing."
 
-        self.animation_tree_to_preview = None
-        self.animation_tree_player = None
+        self.tree_to_preview = None
+        self.tree_player = None
+
+
+    def set_state_machine_to_preview(self, state_machine: NetworkTree):
+        """Set to preview a specific state machine instead of the whole MoVE network."""
+        assert state_machine.network_tree_type == "STATE_MACHINE"
+        assert state_machine.network_root == self.network
+        assert not self.is_playing, "Cannot change state machine while playing."
+        assert self.armature is not None and self.armature_obj is not None, "Armature must be set."
+
+        self.tree_to_preview = state_machine
+        self.tree_player = StateMachinePlayer(state_machine, self.armature_obj)
+
+    def clear_state_machine_to_preview(self):
+        assert not self.is_playing, "Cannot change state machine while playing."
+
+        self.tree_to_preview = None
+        self.tree_player = None
 
     def set_armature(self, armature):
         assert not self.is_playing, "Cannot change armature while playing."
@@ -88,7 +106,7 @@ class NetworkPlayer:
         # frame1 = self.clip_player1.update(delta_time)
         # frame1.apply_to_armature_obj(self.armature_obj)
 
-        frame = self.animation_tree_player.update(delta_time)
+        frame = self.tree_player.update(delta_time)
         frame.apply_to_armature_obj(self.armature_obj)
 
     def frame_changed(self, scene):

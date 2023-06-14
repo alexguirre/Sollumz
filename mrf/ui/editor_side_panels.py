@@ -4,6 +4,7 @@ from ..nodes.nodes import ATNodeOutputAnimation
 from ...sollumz_ui import SOLLUMZ_UL_armature_list
 from ..operators.preview_network import SOLLUMZ_OT_MOVE_NETWORK_preview_network
 from ..operators.preview_animation_tree import SOLLUMZ_OT_MOVE_NETWORK_preview_animation_tree
+from ..operators.preview_state_machine import SOLLUMZ_OT_MOVE_NETWORK_preview_state_machine
 from ..operators.layout_animation_tree import SOLLUMZ_OT_MOVE_NETWORK_layout_animation_tree
 from ..operators.delete_network_parameter import SOLLUMZ_OT_MOVE_NETWORK_delete_network_parameter
 from ..operators.add_network_parameter import SOLLUMZ_OT_MOVE_NETWORK_add_network_parameter
@@ -36,11 +37,11 @@ class NetworkPropertiesPanel(bpy.types.Panel):
         b.template_list(SOLLUMZ_UL_armature_list.bl_idname, "",
                         bpy.data, "armatures", node_tree, "selected_armature")
 
-        b = self.layout.box()
-        b.label(text="Debug", icon="TOOL_SETTINGS")
-        b.prop(node_tree, "debug_blend_weight")
-        b.prop(node_tree, "debug_phase")
-        b.prop(node_tree, "debug_rate")
+        # b = self.layout.box()
+        # b.label(text="Debug", icon="TOOL_SETTINGS")
+        # b.prop(node_tree, "debug_blend_weight")
+        # b.prop(node_tree, "debug_phase")
+        # b.prop(node_tree, "debug_rate")
 
         delete_network_parameter_op = SOLLUMZ_OT_MOVE_NETWORK_delete_network_parameter.bl_idname
         add_network_parameter_op = SOLLUMZ_OT_MOVE_NETWORK_add_network_parameter.bl_idname
@@ -179,6 +180,7 @@ class StateMachinePropertiesPanel(bpy.types.Panel):
         node_tree = context.space_data.edit_tree
 
         self.layout.prop(node_tree, 'name')
+        self.layout.operator(SOLLUMZ_OT_MOVE_NETWORK_preview_state_machine.bl_idname)
 
 
 class ATNodeActionsPanel(bpy.types.Panel):
