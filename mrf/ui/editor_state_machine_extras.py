@@ -6,7 +6,7 @@ import math
 from ..nodes.node_tree import NetworkTree
 
 
-shader = gpu.shader.from_builtin('SMOOTH_COLOR')
+SHADER_SMOOTH_COLOR = gpu.shader.from_builtin('SMOOTH_COLOR')
 
 
 def _get_node_pos(node):
@@ -124,10 +124,10 @@ def draw_transition_arrows(pos_pairs, hovered_idx, active_idx):
 
         i += 1
 
-    batch = batch_for_shader(shader, 'LINES', {"pos": coords, "color": colors})
+    batch = batch_for_shader(SHADER_SMOOTH_COLOR, 'LINES', {"pos": coords, "color": colors})
     # shader.uniform_float("color", (1, 1, 0, 1))
     gpu.state.line_width_set(3)
-    batch.draw(shader)
+    batch.draw(SHADER_SMOOTH_COLOR)
 
 
 def fix_transition_arrows_overlaps(arrows, arrow_index_to_transition):
@@ -195,6 +195,22 @@ def draw_state_machine_transitions(node_tree):
     draw_transition_arrows(transition_arrows, hovered_idx, active_idx)
 
 
+def draw_active_state_indicators(node_tree):
+    coords = []
+    colors = []
+    for node in node_tree.nodes:
+        if node.bl_idname == "SOLLUMZ_NT_MOVE_NETWORK_SMNodeStart":
+            continue
+
+        active = node.ui_exec_active
+        if active > 0.0:
+            coords.append((node.location.x, node.location.y, 0))
+            colors.append((0.8 * active, 0.1 * active, 0.1 * active, 1.0))
+
+    batch = batch_for_shader(SHADER_SMOOTH_COLOR, 'POINTS', {"pos": coords, "color": colors})
+    gpu.state.point_size_set(16)
+    batch.draw(SHADER_SMOOTH_COLOR)
+
 # def draw_states_drag_area(node_tree):
 #     margin = 8
 #
@@ -236,6 +252,7 @@ def draw_callback():
 
     # draw_states_drag_area(node_tree)
     draw_state_machine_transitions(node_tree)
+    draw_active_state_indicators(node_tree)
 
 
 draw_callback_handles = []

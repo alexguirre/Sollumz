@@ -39,6 +39,7 @@ class SMActiveTransition:
     def update(self, context: StateMachineContext):
         self.time += context.delta_time
         self.progress = bl_math.clamp(self.time / self.duration, 0.0, 1.0)
+        self.from_state.ui_exec_active = 1.0 - self.progress
         if self.props.progress_parameter_name != "":
             context.set_parameter(self.props.progress_parameter_name, self.progress)
 
@@ -86,6 +87,7 @@ class StateMachinePlayer:
                                                                   self.context.armature_obj)
         else:
             assert False, "Unknown state type"
+        self.active_state.ui_exec_active = 1.0
 
     def _do_transition(self, transition: SMTransitionProperties):
         duration = transition.duration
@@ -100,6 +102,8 @@ class StateMachinePlayer:
                                                        self.active_state_machine_player,
                                                        self.active_animation_tree_player)
             self.active_transitions.append(new_active_transition)
+        else:
+            self.active_state.ui_exec_active = 0.0
 
         target_state = self.state_machine.nodes[transition.target_state]
         assert target_state is not None, "Transition target state must exist"

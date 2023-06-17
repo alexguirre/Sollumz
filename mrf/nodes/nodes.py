@@ -604,6 +604,9 @@ class SMNodeStateBase(StateMachineNodeBase):
     transitions: bpy.props.CollectionProperty(name="Transitions", type=SMTransitionProperties)
     ui_active_transition_index: bpy.props.IntProperty()
 
+    # used to show an indicator when the node is active during SM preview
+    ui_exec_active: bpy.props.FloatProperty(default=0.0, min=0.0, max=1.0)
+
     def init(self, context):
         pass
 
@@ -642,7 +645,7 @@ class SMNodeState(SMNodeStateBase):
     animation_tree: bpy.props.PointerProperty(name="Animation Tree", type=NetworkTree)
 
     def init(self, context):
-        pass
+        super().init(context)
 
     def draw_buttons(self, context, layout):
         super().draw_buttons(context, layout)
@@ -658,7 +661,7 @@ class SMNodeStateMachine(SMNodeStateBase):
     state_machine_tree: bpy.props.PointerProperty(name="State Machine", type=NetworkTree)
 
     def init(self, context):
-        pass
+        super().init(context)
 
     def draw_buttons(self, context, layout):
         super().draw_buttons(context, layout)

@@ -56,6 +56,7 @@ class FrameBuffer:
             self.buffer = np.empty(num_bones * 10, dtype=np.float32)  # 10 -> (x y z) + (w x y z) + (x y z)
         else:
             self.buffer = buffer_to_copy.copy()
+        self.buffer_u32 = self.buffer.view(dtype=np.uint32)
 
         # buffer views for position, rotation and scale data
         position_end = num_bones * 3  # 3 -> (x y z)
@@ -63,10 +64,13 @@ class FrameBuffer:
         self.position_data = self.buffer[:position_end].reshape((num_bones, 3))
         self.rotation_data = self.buffer[position_end:rotation_end].reshape((num_bones, 4))
         self.scale_data = self.buffer[rotation_end:].reshape((num_bones, 3))
+        self.position_data_u32 = self.position_data.view(dtype=np.uint32)
+        self.rotation_data_u32 = self.rotation_data.view(dtype=np.uint32)
+        self.scale_data_u32 = self.scale_data.view(dtype=np.uint32)
 
-        # default to identity if not making a copy
+        # default to invalid if not making a copy
         if buffer_to_copy is None:
-            self.make_identity()
+            self.make_invalid()
 
     def apply_to_armature_obj(self, armature_obj):
         armature_obj.pose.bones.foreach_set("location", self.position_data.ravel())
@@ -84,19 +88,60 @@ class FrameBuffer:
         self.rotation_data[:, 0] = 1.0              # rotation to identity
         self.scale_data.fill(1.0)                   # scale to one
 
+    def make_invalid(self):
+        self.buffer_u32.fill(0xFFFFFFFF)
+
+    # TODO: masking may be creating lots of intermediate allocations and slowing things down
+
     def combine(self, other):
-        self.position_data += other.position_data
-        quaternion_multiply(self.rotation_data, other.rotation_data)
-        self.scale_data *= other.scale_data
+        valid_mask = self.position_valid_mask(other)
+        self.position_data[valid_mask] += other.position_data[valid_mask]
+
+        valid_mask = self.rotation_valid_mask(other)
+        r = self.rotation_data[valid_mask].reshape(-1, 4)
+        quaternion_multiply(r, other.rotation_data[valid_mask].reshape(-1, 4))
+        self.rotation_data[valid_mask] = r.flatten()
+
+        valid_mask = self.scale_valid_mask(other)
+        self.scale_data[valid_mask] *= other.scale_data[valid_mask]
 
     def add(self, other):
-        self.position_data += other.position_data
+        valid_mask = self.position_valid_mask(other)
+        self.position_data[valid_mask] += other.position_data[valid_mask]
 
     def multiply(self, other):
-        quaternion_multiply(self.rotation_data, other.rotation_data)
-        self.scale_data *= other.scale_data
+        valid_mask = self.rotation_valid_mask(other)
+        r = self.rotation_data[valid_mask].reshape(-1, 4)
+        quaternion_multiply(r, other.rotation_data[valid_mask].reshape(-1, 4))
+        self.rotation_data[valid_mask] = r.flatten()
+
+        valid_mask = self.scale_valid_mask(other)
+        self.scale_data[valid_mask] *= other.scale_data[valid_mask]
 
     def blend(self, other, weight):
-        self.position_data += weight * (other.position_data - self.position_data)
-        quaternion_slerp(self.rotation_data, other.rotation_data, weight)
-        self.scale_data += weight * (other.scale_data - self.scale_data)
+        valid_mask = self.position_valid_mask(other)
+        self.position_data[valid_mask] += weight * (other.position_data[valid_mask] - self.position_data[valid_mask])
+
+        valid_mask = self.rotation_valid_mask(other)
+        r = self.rotation_data[valid_mask].reshape(-1, 4)
+        quaternion_slerp(r, other.rotation_data[valid_mask].reshape(-1, 4), weight)
+        self.rotation_data[valid_mask] = r.flatten()
+
+        valid_mask = self.scale_valid_mask(other)
+        self.scale_data[valid_mask] += weight * (other.scale_data[valid_mask] - self.scale_data[valid_mask])
+
+    def merge(self, other):
+        """
+        Set invalid values of this frame to the values of the other frame.
+        """
+        invalid_mask = self.buffer_u32 == 0xFFFFFFFF
+        self.buffer_u32[invalid_mask] = other.buffer_u32[invalid_mask]
+
+    def position_valid_mask(self, other):
+        return (self.position_data_u32 != 0xFFFFFFFF) & (other.position_data_u32 != 0xFFFFFFFF)
+
+    def rotation_valid_mask(self, other):
+        return (self.rotation_data_u32 != 0xFFFFFFFF) & (other.rotation_data_u32 != 0xFFFFFFFF)
+
+    def scale_valid_mask(self, other):
+        return (self.scale_data_u32 != 0xFFFFFFFF) & (other.scale_data_u32 != 0xFFFFFFFF)

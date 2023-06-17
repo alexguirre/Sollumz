@@ -64,7 +64,6 @@ class ClipPlayer:
         self.duration = clip_properties.duration
         self.frame_count = round(clip_properties.duration * bpy.context.scene.render.fps)
         self.frames = [FrameBuffer(self.num_bones) for _ in range(self.frame_count)]  # TODO: may want to reuse buffers
-        # TODO: set framebuffer from original pose of armature
 
         bone_name_to_index = {}
         bone_index = 0
@@ -130,7 +129,7 @@ class ClipPlayer:
                     curves.append((fcurve, bone_index, data_type))
 
                 for frame in range(self.frame_count):
-                    tmp_buffer.make_identity()
+                    tmp_buffer.make_invalid()
                     frame_interpolated = bl_math.lerp(action_frame_start, action_frame_end, frame / self.frame_count)
 
                     for fcurve, bone_index, data_type in curves:
@@ -150,3 +149,7 @@ class ClipPlayer:
                         self.frames[frame].multiply(tmp_buffer)
                     elif "_base" in group_name:
                         self.frames[frame].combine(tmp_buffer)
+
+                    # on invalid elements the previous operations are no-ops,
+                    # so we merge to replace invalid elements with valid ones
+                    self.frames[frame].merge(tmp_buffer)

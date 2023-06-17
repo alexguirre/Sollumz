@@ -20,35 +20,27 @@ class AnimationTreeContext:
         self.network.network_parameters.set(parameter_name, value)
 
 
-at_trace_enabled = True
-
-
-def at_trace(msg):
-    if at_trace_enabled:
-        print(msg)
-
-
 def evaluate_operation(ops: ATNodeOperation, context: AnimationTreeContext):
-    at_trace("--------------------------------")
+    # print("--------------------------------")
     stack = [0.0] * len(ops.operators)  # TODO: cache stacks?
     stack_top = -1
     for operator in ops.operators:
         if operator.type == "PushLiteral":
             stack_top += 1
             stack[stack_top] = operator.value
-            at_trace(f"PushLiteral {operator.value}")
+            # print(f"PushLiteral {operator.value}")
         elif operator.type == "PushParameter":
             stack_top += 1
             stack[stack_top] = float(context.get_parameter(operator.parameter_name))
-            at_trace(f"PushParameter {operator.parameter_name}  ({stack[stack_top]})")
+            # print(f"PushParameter {operator.parameter_name}  ({stack[stack_top]})")
         elif operator.type == "Add":
             stack[stack_top - 1] += stack[stack_top]
             stack_top -= 1
-            at_trace(f"+ ({stack[stack_top]})")
+            # print(f"+ ({stack[stack_top]})")
         elif operator.type == "Multiply":
             stack[stack_top - 1] *= stack[stack_top]
             stack_top -= 1
-            at_trace(f"* ({stack[stack_top]})")
+            # print(f"* ({stack[stack_top]})")
         elif operator.type == "Remap":
             v = stack[stack_top]
             v_min = operator.min
@@ -63,10 +55,10 @@ def evaluate_operation(ops: ATNodeOperation, context: AnimationTreeContext):
                     # remap to new range
                     v = r.min + r.length * v
                     break
-            at_trace(f"remap {stack[stack_top]} -> {v}")
+            # print(f"remap {stack[stack_top]} -> {v}")
             stack[stack_top] = v
-    at_trace(f"RESULT = {stack[stack_top]}")
-    at_trace("--------------------------------")
+    # print(f"RESULT = {stack[stack_top]}")
+    # print("--------------------------------")
     return stack[stack_top]
 
 
@@ -83,6 +75,13 @@ def exec_node_update_blend(node, context: AnimationTreeContext):
     frame1 = node.children[0].update(context)
     frame2 = node.children[1].update(context)
     frame1.blend(frame2, node.blend_weight)
+    return frame1
+
+
+def exec_node_update_add_subtract(node, context: AnimationTreeContext):
+    frame1 = node.children[0].update(context)
+    # frame2 = node.children[1].update(context)
+    # frame1.apply_additive(frame2, node.add_weight)
     return frame1
 
 
@@ -129,8 +128,14 @@ def exec_node_update_state_machine(node, context: AnimationTreeContext):
     return node.state_machine_player.update(context.delta_time)
 
 
-def exec_node_update_identity(node, context: AnimationTreeContext):
+def exec_node_update_invalid(node, context: AnimationTreeContext):
     return FrameBuffer(context.num_bones)
+
+
+def exec_node_update_identity(node, context: AnimationTreeContext):
+    f = FrameBuffer(context.num_bones)
+    f.make_identity()
+    return f
 
 
 exec_node_update_dict = {
@@ -139,7 +144,7 @@ exec_node_update_dict = {
     ATNodeTail.bl_idname: exec_node_update_identity,
     ATNodeInlinedStateMachine.bl_idname: exec_node_update_identity,
     ATNodeBlend.bl_idname: exec_node_update_blend,
-    ATNodeAddSubtract.bl_idname: exec_node_update_child_passthrough,
+    ATNodeAddSubtract.bl_idname: exec_node_update_add_subtract,
     ATNodeFilter.bl_idname: exec_node_update_child_passthrough,
     ATNodeMirror.bl_idname: exec_node_update_child_passthrough,
     ATNodeFrame.bl_idname: exec_node_update_identity,
@@ -155,7 +160,7 @@ exec_node_update_dict = {
     ATNodeMerge.bl_idname: exec_node_update_child_passthrough,
     ATNodePose.bl_idname: exec_node_update_identity,
     ATNodeMergeN.bl_idname: exec_node_update_child_passthrough,
-    ATNodeInvalid.bl_idname: exec_node_update_identity,
+    ATNodeInvalid.bl_idname: exec_node_update_invalid,
     ATNodeJointLimit.bl_idname: exec_node_update_child_passthrough,
     ATNodeSubNetwork.bl_idname: exec_node_update_identity,
 }
@@ -219,6 +224,24 @@ def exec_node_set_parameter_blend(node, context: AnimationTreeContext, parameter
         raise Exception("Unknown blend node parameter id: {}".format(parameter_id))
 
 
+def exec_node_get_parameter_add_subtract(node, context: AnimationTreeContext, parameter_id, extra_arg):
+    if parameter_id == "BLEND_FILTER":
+        return None
+    elif parameter_id == "BLEND_WEIGHT":
+        return node.blend_weight
+    else:
+        raise Exception("Unknown blend node parameter id: {}".format(parameter_id))
+
+
+def exec_node_set_parameter_add_subtract(node, context: AnimationTreeContext, parameter_id, extra_arg, value):
+    if parameter_id == "ADDSUBTRACT_FILTER":
+        pass
+    elif parameter_id == "ADDSUBTRACT_WEIGHT":
+        node.add_weight = float(value)
+    else:
+        raise Exception("Unknown add-subtract node parameter id: {}".format(parameter_id))
+
+
 def exec_node_get_parameter_blend_n(node, context: AnimationTreeContext, parameter_id, extra_arg):
     if parameter_id == "BLENDN_FILTER":
         return None
@@ -249,7 +272,7 @@ exec_node_getset_parameter_dict = {
     ATNodeTail.bl_idname: exec_node_getset_parameter_default,
     ATNodeInlinedStateMachine.bl_idname: exec_node_getset_parameter_default,
     ATNodeBlend.bl_idname: (exec_node_get_parameter_blend, exec_node_set_parameter_blend),
-    ATNodeAddSubtract.bl_idname: exec_node_getset_parameter_default,
+    ATNodeAddSubtract.bl_idname: (exec_node_get_parameter_add_subtract, exec_node_set_parameter_add_subtract),
     ATNodeFilter.bl_idname: exec_node_getset_parameter_default,
     ATNodeMirror.bl_idname: exec_node_getset_parameter_default,
     ATNodeFrame.bl_idname: exec_node_getset_parameter_default,
@@ -325,6 +348,17 @@ def exec_node_init_blend(node, context: AnimationTreeContext):
         node.blend_weight = context.get_parameter(weight_prop.parameter)
 
 
+def exec_node_init_add_subtract(node, context: AnimationTreeContext):
+    # node.add_filter = None
+    node.add_weight = 0.0
+
+    weight_prop = node.ui_node.weight
+    if weight_prop.type == "LITERAL":
+        node.add_weight = weight_prop.value
+    elif weight_prop.type == "PARAMETER":
+        node.add_weight = context.get_parameter(weight_prop.parameter)
+
+
 def exec_node_init_blend_n(node, context: AnimationTreeContext):
     # node.blend_filter = None
     node.blend_n_weights = [0.0] * len(node.children)
@@ -348,7 +382,7 @@ exec_node_init_dict = {
     ATNodeTail.bl_idname: exec_node_init_default,
     ATNodeInlinedStateMachine.bl_idname: exec_node_init_default,
     ATNodeBlend.bl_idname: exec_node_init_blend,
-    ATNodeAddSubtract.bl_idname: exec_node_init_default,
+    ATNodeAddSubtract.bl_idname: exec_node_init_add_subtract,
     ATNodeFilter.bl_idname: exec_node_init_default,
     ATNodeMirror.bl_idname: exec_node_init_default,
     ATNodeFrame.bl_idname: exec_node_init_default,
