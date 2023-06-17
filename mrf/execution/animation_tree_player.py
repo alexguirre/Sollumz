@@ -124,6 +124,13 @@ def exec_node_update_blend_n(node, context: AnimationTreeContext):
     return frames[-1]
 
 
+def exec_node_update_merge(node, context: AnimationTreeContext):
+    frame1 = node.children[0].update(context)
+    frame2 = node.children[1].update(context)
+    frame1.merge(frame2)
+    return frame1
+
+
 def exec_node_update_state_machine(node, context: AnimationTreeContext):
     return node.state_machine_player.update(context.delta_time)
 
@@ -157,7 +164,7 @@ exec_node_update_dict = {
     ATNodeProxy.bl_idname: exec_node_update_identity,
     ATNodeAddN.bl_idname: exec_node_update_child_passthrough,
     ATNodeIdentity.bl_idname: exec_node_update_identity,
-    ATNodeMerge.bl_idname: exec_node_update_child_passthrough,
+    ATNodeMerge.bl_idname: exec_node_update_merge,
     ATNodePose.bl_idname: exec_node_update_identity,
     ATNodeMergeN.bl_idname: exec_node_update_child_passthrough,
     ATNodeInvalid.bl_idname: exec_node_update_invalid,
@@ -264,6 +271,20 @@ def exec_node_set_parameter_blend_n(node, context: AnimationTreeContext, paramet
         raise Exception("Unknown blend node parameter id: {}".format(parameter_id))
 
 
+def exec_node_get_parameter_merge(node, context: AnimationTreeContext, parameter_id, extra_arg):
+    if parameter_id == "MERGE_FILTER":
+        return None
+    else:
+        raise Exception("Unknown merge node parameter id: {}".format(parameter_id))
+
+
+def exec_node_set_parameter_merge(node, context: AnimationTreeContext, parameter_id, extra_arg, value):
+    if parameter_id == "MERGE_FILTER":
+        pass
+    else:
+        raise Exception("Unknown merge node parameter id: {}".format(parameter_id))
+
+
 exec_node_getset_parameter_default = (exec_node_get_parameter_default, exec_node_set_parameter_default)
 
 exec_node_getset_parameter_dict = {
@@ -285,7 +306,7 @@ exec_node_getset_parameter_dict = {
     ATNodeProxy.bl_idname: exec_node_getset_parameter_default,
     ATNodeAddN.bl_idname: exec_node_getset_parameter_default,
     ATNodeIdentity.bl_idname: exec_node_getset_parameter_default,
-    ATNodeMerge.bl_idname: exec_node_getset_parameter_default,
+    ATNodeMerge.bl_idname: (exec_node_get_parameter_merge, exec_node_set_parameter_merge),
     ATNodePose.bl_idname: exec_node_getset_parameter_default,
     ATNodeMergeN.bl_idname: exec_node_getset_parameter_default,
     ATNodeInvalid.bl_idname: exec_node_getset_parameter_default,
@@ -371,6 +392,11 @@ def exec_node_init_blend_n(node, context: AnimationTreeContext):
     #     node.blend_weight = context.get_parameter(weight_prop.parameter)
 
 
+def exec_node_init_merge(node, context: AnimationTreeContext):
+    # node.merge_filter = None
+    pass
+
+
 def exec_node_init_state_machine(node, context: AnimationTreeContext):
     from .state_machine_player import StateMachinePlayer
     node.state_machine_player = StateMachinePlayer(node.ui_node.state_machine_tree, context.armature_obj)
@@ -395,7 +421,7 @@ exec_node_init_dict = {
     ATNodeProxy.bl_idname: exec_node_init_default,
     ATNodeAddN.bl_idname: exec_node_init_default,
     ATNodeIdentity.bl_idname: exec_node_init_default,
-    ATNodeMerge.bl_idname: exec_node_init_default,
+    ATNodeMerge.bl_idname: exec_node_init_merge,
     ATNodePose.bl_idname: exec_node_init_default,
     ATNodeMergeN.bl_idname: exec_node_init_default,
     ATNodeInvalid.bl_idname: exec_node_init_default,
