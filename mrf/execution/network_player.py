@@ -7,6 +7,8 @@ from .animation_tree_player import AnimationTreePlayer
 from .state_machine_player import StateMachinePlayer
 from .frame_buffer import FrameBuffer
 
+from ...cwxml.yfd import YFD
+
 class NetworkPlayer:
     def __init__(self, network: NetworkTree):
         assert network.network_tree_type == "ROOT"
@@ -21,6 +23,11 @@ class NetworkPlayer:
         self.frame_curr = 0
         self.frame_prev = 0
         self.identity_frame = None
+
+        frame_filter_dict_xml = YFD.from_xml_file("D:\\re\\gta5\\player.yfd.xml")
+        self.frame_filter_dict = {}
+        for frame_filter in frame_filter_dict_xml:
+            self.frame_filter_dict[frame_filter.name] = frame_filter
 
     def set_animation_tree_to_preview(self, animation_tree: NetworkTree):
         """Set to preview a specific animation tree instead of the whole MoVE network."""
