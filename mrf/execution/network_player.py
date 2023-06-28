@@ -3,11 +3,14 @@ import bl_math
 from ..nodes.node_tree import NetworkTree
 from ...tools.blenderhelper import get_armature_obj
 from .clip_player import ClipPlayer
+from .expression_player import ExpressionPlayer
 from .animation_tree_player import AnimationTreePlayer
 from .state_machine_player import StateMachinePlayer
 from .frame_buffer import FrameBuffer
 
 from ...cwxml.yfd import YFD
+from ...cwxml.yed import YED
+
 
 class NetworkPlayer:
     def __init__(self, network: NetworkTree):
@@ -24,10 +27,17 @@ class NetworkPlayer:
         self.frame_prev = 0
         self.identity_frame = None
 
+        self._expression_player = None
+
         frame_filter_dict_xml = YFD.from_xml_file("D:\\re\\gta5\\player.yfd.xml")
         self.frame_filter_dict = {}
         for frame_filter in frame_filter_dict_xml:
             self.frame_filter_dict[frame_filter.name] = frame_filter
+
+        expr_dict_xml = YED.from_xml_file("D:\\re\\gta5\\yeds\\p_barriercrash_01_s.yed.xml")
+        self.expr_dict = {}
+        for expr in expr_dict_xml:
+            self.expr_dict[expr.name] = expr
 
     def set_animation_tree_to_preview(self, animation_tree: NetworkTree):
         """Set to preview a specific animation tree instead of the whole MoVE network."""
@@ -44,7 +54,6 @@ class NetworkPlayer:
 
         self.tree_to_preview = None
         self.tree_player = None
-
 
     def set_state_machine_to_preview(self, state_machine: NetworkTree):
         """Set to preview a specific state machine instead of the whole MoVE network."""
@@ -69,6 +78,8 @@ class NetworkPlayer:
         self.armature_obj = get_armature_obj(armature)
         self.identity_frame = FrameBuffer(len(self.armature_obj.pose.bones))
         self.identity_frame.make_identity()
+
+        self._expression_player = ExpressionPlayer(self.armature_obj, self.expr_dict["pack:/p_barriercrash_01_s.expr"])
 
     def play(self):
         assert self.armature is not None, "Armature must be set."
@@ -96,9 +107,14 @@ class NetworkPlayer:
     def frame_update(self):
         delta_time = 1 / bpy.context.scene.render.fps
 
-        frame = self.tree_player.update(delta_time)
-        frame.merge(self.identity_frame)  # use identity as base for bones not set by the tree
+        frame = FrameBuffer(len(self.armature_obj.pose.bones))
+        frame.from_armature_obj(self.armature_obj)
+        self._expression_player.update(delta_time, frame)
         frame.apply_to_armature_obj(self.armature_obj)
+
+        # frame = self.tree_player.update(delta_time)
+        # frame.merge(self.identity_frame)  # use identity as base for bones not set by the tree
+        # frame.apply_to_armature_obj(self.armature_obj)
 
     def frame_changed(self, scene):
         frame = scene.frame_current
