@@ -452,6 +452,7 @@ def clip_from_object(clip_obj):
 
 
 def clip_dictionary_from_object(exportop, obj, exportpath, export_settings=None):
+    assert False, "Not implemented"
     clip_dictionary = ycdxml.ClipsDictionary()
 
     armature = obj.clip_dict_properties.armature
