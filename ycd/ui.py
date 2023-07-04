@@ -24,7 +24,8 @@ def draw_clip_properties(self, context):
 
 animation_target_id_type_to_collection_name = {
     "ARMATURE": "armatures",
-    "CAMERA": "cameras"
+    "CAMERA": "cameras",
+    "DRAWABLE_GEOMETRY": "meshes",
 }
 
 

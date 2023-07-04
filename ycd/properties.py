@@ -202,6 +202,112 @@ def transform_camera_rotation_quaternion(fcurves, old_camera, new_camera):
     z.update()
 
 
+def get_data_obj(data):
+    if data is None:
+        return None
+
+    for obj in bpy.data.objects:
+        if obj.data == data:
+            return obj
+
+    return None
+
+
+def add_driver_variable_obj_prop(fcurve, name, obj, prop_data_path):
+    var = fcurve.driver.variables.new()
+    var.name = name
+    var.type = "SINGLE_PROP"
+    var_target = var.targets[0]
+    var_target.id_type = "OBJECT"
+    var_target.id = obj
+    var_target.data_path = prop_data_path
+    return var
+
+
+def setup_camera_for_animation(camera):
+    camera_obj = get_data_obj(camera)
+    camera_obj.rotation_mode = 'QUATERNION'  # camera rotation track uses rotation_quaternion
+
+    # connect camera_fov track to blender camera
+    # NOTE: seems to report a dependency cycle, but works fine, blender bug?
+    camera.driver_remove("lens")
+    fcurve_lens = camera.driver_add("lens")
+    add_driver_variable_obj_prop(fcurve_lens, "fov", camera_obj, "animation_tracks.camera_fov")
+    add_driver_variable_obj_prop(fcurve_lens, "sensor", camera_obj, "data.sensor_width")
+    fcurve_lens.driver.expression = "(sensor * 0.5) / tan(radians(fov) * 0.5)"
+    fcurve_lens.update()
+
+
+def add_global_anim_uv_drivers(drawable_geometry_obj, x_dot_node, y_dot_node):
+    def _add_driver(dot_node, track):
+        vec_input = dot_node.inputs[1]
+        vec_input.driver_remove("default_value")
+        fcurves = vec_input.driver_add("default_value")
+        components = ["x", "y", "z"]
+        for i in range(3):
+            fcurve = fcurves[i]
+            comp = components[i]
+            add_driver_variable_obj_prop(fcurve, comp, drawable_geometry_obj, f"animation_tracks.{track}.{comp}")
+            fcurve.driver.expression = comp
+            fcurve.update()
+
+    _add_driver(x_dot_node, "uv0")
+    _add_driver(y_dot_node, "uv1")
+
+
+def add_global_anim_uv_nodes(drawable_geometry_obj, material):
+    tree = material.node_tree
+    nodes = tree.nodes
+    base_tex_node = None
+    for node in nodes:
+        if node.type == "BSDF_PRINCIPLED":
+            base_tex_node = node.inputs[0].links[0].from_node
+            break
+
+    if base_tex_node is None:
+        raise Exception("Could not find base texture node")
+
+    # operation to perform:
+    #   vec uv = ...
+    #   vec uvw = vec(uv, 1);
+    #   uv.x = dot(uvw, globalAnimUV0.xyz);
+    #   uv.y = dot(uvw, globalAnimUV1.xyz);
+    uv = nodes.new("ShaderNodeUVMap")
+    separate_uv = nodes.new("ShaderNodeSeparateXYZ")
+    combine_augmented_uv = nodes.new("ShaderNodeCombineXYZ")
+    combine_augmented_uv.inputs["Z"].default_value = 1.0
+    x_dot = nodes.new("ShaderNodeVectorMath")
+    x_dot.operation = "DOT_PRODUCT"
+    y_dot = nodes.new("ShaderNodeVectorMath")
+    y_dot.operation = "DOT_PRODUCT"
+    combine_new_uv = nodes.new("ShaderNodeCombineXYZ")
+    combine_new_uv.inputs["Z"].default_value = 0.0
+
+    tree.links.new(separate_uv.inputs["Vector"], uv.outputs["UV"])
+    tree.links.new(combine_augmented_uv.inputs["X"], separate_uv.outputs["X"])
+    tree.links.new(combine_augmented_uv.inputs["Y"], separate_uv.outputs["Y"])
+
+    tree.links.new(x_dot.inputs[0], combine_augmented_uv.outputs[0])
+    tree.links.new(y_dot.inputs[0], combine_augmented_uv.outputs[0])
+
+    tree.links.new(combine_new_uv.inputs["X"], x_dot.outputs["Value"])
+    tree.links.new(combine_new_uv.inputs["Y"], y_dot.outputs["Value"])
+
+    tree.links.new(base_tex_node.inputs["Vector"], combine_new_uv.outputs[0])
+
+    add_global_anim_uv_drivers(drawable_geometry_obj, x_dot, y_dot)
+
+
+def setup_drawable_geometry_for_animation(drawable_geometry):
+    drawable_geometry_obj = get_data_obj(drawable_geometry)
+
+    material = drawable_geometry.materials[0]
+    if material.sollum_type == "sollumz_material_none":
+        raise Exception("Material is not a Sollumz material")
+
+    add_global_anim_uv_nodes(drawable_geometry_obj, material)
+
+
 def retarget_animation(action, old_target_id, new_target_id):
     if isinstance(old_target_id, bpy.types.Armature):
         old_bone_map = build_bone_map(get_armature_obj(old_target_id))
@@ -216,21 +322,23 @@ def retarget_animation(action, old_target_id, new_target_id):
         new_bone_map = None
 
     new_is_camera = new_target_id is not None and isinstance(new_target_id, bpy.types.Camera)
+    new_is_drawable_geometry = new_target_id is not None and isinstance(new_target_id, bpy.types.Mesh)
     disable_camera_tracks = new_target_id is not None and not isinstance(new_target_id, bpy.types.Camera)
-    print(f"new_is_camera: {new_is_camera}")
-    print(f"disable_camera_tracks: {disable_camera_tracks}")
 
     # bone_id -> [fcurves]
     bone_locations_to_transform = {}
     bone_rotations_to_transform = {}
+
     camera_rotation_to_transform = None
 
     for fcurve in action.fcurves:
         # TODO: can we somehow store the track ID in the F-Curve to avoid parsing the data paths?
         data_path = fcurve.data_path
 
-        # revert camera tracks data paths to bone IDs
+        # revert camera/uv tracks data paths to bone IDs
         if not new_is_camera and data_path.startswith("animation_tracks.camera_"):
+            data_path = data_path.replace("animation_tracks.", 'pose.bones["#0"].animation_tracks_')
+        elif not new_is_drawable_geometry and data_path.startswith("animation_tracks.uv"):
             data_path = data_path.replace("animation_tracks.", 'pose.bones["#0"].animation_tracks_')
 
         # insert bone names in data paths or revert to bone IDs, and transform bone locations/rotations
@@ -277,8 +385,11 @@ def retarget_animation(action, old_target_id, new_target_id):
         elif new_is_camera and data_path.startswith('pose.bones["#0"].animation_tracks_camera_'):  # camera properties
             # change data path to modify the actual camera object instead of an armature
             data_path = data_path.replace('pose.bones["#0"].animation_tracks_', "animation_tracks.")
+        elif new_is_drawable_geometry and data_path.startswith('pose.bones["#0"].animation_tracks_uv'):  # uv properties
+            # change data path to modify the actual drawable geometry object instead of an armature
+            data_path = data_path.replace('pose.bones["#0"].animation_tracks_', "animation_tracks.")
 
-        print(f"<{fcurve.data_path}> -> <{data_path}>")
+        # print(f"<{fcurve.data_path}> -> <{data_path}>")
         fcurve.data_path = data_path
 
     # perform required transformations
@@ -296,6 +407,12 @@ def retarget_animation(action, old_target_id, new_target_id):
         old_camera = old_target_id if isinstance(old_target_id, bpy.types.Camera) else None
         new_camera = new_target_id if isinstance(new_target_id, bpy.types.Camera) else None
         transform_camera_rotation_quaternion(camera_rotation_to_transform, old_camera, new_camera)
+
+    if new_is_camera:
+        setup_camera_for_animation(new_target_id)
+
+    if new_is_drawable_geometry:
+        setup_drawable_geometry_for_animation(new_target_id)
 
 
 class AnimationProperties(bpy.types.PropertyGroup):
@@ -316,6 +433,7 @@ class AnimationProperties(bpy.types.PropertyGroup):
     target_id_type: bpy.props.EnumProperty(name="Target Type", items=[
         ("ARMATURE", "Armature", "Armature", "OUTLINER_DATA_ARMATURE", 0),
         ("CAMERA", "Camera", "Camera", "OUTLINER_DATA_CAMERA", 1),
+        ("DRAWABLE_GEOMETRY", "Drawable Geometry", "Drawable Geometry", "OUTLINER_DATA_MESH", 2),
     ], default="ARMATURE")
 
 
